@@ -1,16 +1,29 @@
 import { Link } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
+import { colors, spacing } from "../src/theme";
+import AppButton from "../src/ui/AppButton";
+import AppText from "../src/ui/AppText";
 
 export default function Home() {
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
-      <Text style={{ fontSize: 22, fontWeight: "600", marginBottom: 16 }}>
-        FoodScan – Prototyp
-      </Text>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        padding: spacing.xl,
+        justifyContent: "center",
+      }}
+    >
+      <AppText type="h1" style={{ marginBottom: spacing.lg }}>
+        FoodScan
+      </AppText>
+
+      <AppText type="p2" muted style={{ marginBottom: spacing.xl }}>
+        Scanne einen Barcode und bewerte das Produkt nach WHO-Regeln.
+      </AppText>
+
       <Link href="/scan" asChild>
-        <Pressable style={{ padding: 14, borderRadius: 10, backgroundColor: "#111" }}>
-          <Text style={{ color: "white", fontSize: 16 }}>Barcode scannen</Text>
-        </Pressable>
+        <AppButton title="Barcode scannen" />
       </Link>
     </View>
   );

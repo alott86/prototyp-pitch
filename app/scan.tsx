@@ -1,7 +1,10 @@
 import { BarcodeScanningResult, CameraView, useCameraPermissions } from "expo-camera";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, Text, View } from "react-native";
-import { evaluateProduct, fetchProductByBarcode, ProductEval } from "./src/logic";
+import { ActivityIndicator, Alert, SafeAreaView, View } from "react-native";
+import { evaluateProduct, fetchProductByBarcode, ProductEval } from "../src/logic";
+import { colors, spacing } from "../src/theme";
+import AppButton from "../src/ui/AppButton";
+import AppText from "../src/ui/AppText";
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -9,19 +12,15 @@ export default function ScanScreen() {
   const [result, setResult] = useState<ProductEval | null>(null);
   const lockRef = useRef(false);
 
-  useEffect(() => {
-    if (!permission) requestPermission();
-  }, [permission]);
+  useEffect(() => { if (!permission) requestPermission(); }, [permission]);
 
   if (!permission) return <View />;
 
   if (!permission.granted) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "#fff" }}>
-        <Text style={{ fontSize: 16, marginBottom: 12, color: "#111" }}>Bitte Kamera-Zugriff erlauben.</Text>
-        <Pressable onPress={requestPermission} style={{ padding: 12, backgroundColor: "#111", borderRadius: 8 }}>
-          <Text style={{ color: "white" }}>Erlauben</Text>
-        </Pressable>
+      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, backgroundColor: colors.bg }}>
+        <AppText type="p2" style={{ marginBottom: spacing.md }}>Bitte Kamera-Zugriff erlauben.</AppText>
+        <AppButton title="Erlauben" onPress={requestPermission} />
       </SafeAreaView>
     );
   }
@@ -38,44 +37,30 @@ export default function ScanScreen() {
       Alert.alert("Fehler", e?.message ?? "Unerwarteter Fehler beim Abrufen.");
     } finally {
       setBusy(false);
-      // Kamera bleibt gelockt, bis Nutzer „Nochmal scannen“ drückt
     }
   };
 
   if (result) {
     return (
-      <SafeAreaView style={{ flex: 1, padding: 20, gap: 12, justifyContent: "center", backgroundColor: "#fff" }}>
-        <Text style={{ fontSize: 24, fontWeight: "800", color: result.ok ? "#1e7d32" : "#c62828" }}>
+      <SafeAreaView style={{ flex: 1, padding: spacing.xl, gap: spacing.sm, justifyContent: "center", backgroundColor: colors.bg }}>
+        <AppText type="h2" style={{ color: result.ok ? colors.primary_800 : colors.secondary_800 }}>
           {result.ok ? "✅ Geeignet" : "⛔️ Nicht geeignet"}
-        </Text>
+        </AppText>
 
-        {/* Produktname */}
-        <Text style={{ fontSize: 18, fontWeight: "600", color: "#111" }}>
-          {result.productName}
-        </Text>
+        <AppText type="p1b" style={{ marginTop: spacing.sm }}>{result.productName}</AppText>
+        {result.category?.label ? <AppText type="p3" muted>Kategorie: {result.category.label}</AppText> : null}
 
-        {/* Kategorie, falls erkannt */}
-        {result.category?.label ? (
-          <Text style={{ fontSize: 14, color: "#444" }}>
-            Kategorie: {result.category.label}
-          </Text>
-        ) : null}
-
-        {/* Begründungen */}
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: spacing.md }}>
           {result.reasons.map((r: string, i: number) => (
-            <Text key={i} style={{ fontSize: 14, color: "#111", marginBottom: 4 }}>
-              • {r}
-            </Text>
+            <AppText key={i} type="p2" style={{ marginBottom: 6 }}>• {r}</AppText>
           ))}
         </View>
 
-        <Pressable
+        <AppButton
+          title="Nochmal scannen"
           onPress={() => { setResult(null); lockRef.current = false; }}
-          style={{ marginTop: 16, padding: 12, backgroundColor: "#111", borderRadius: 8, alignSelf: "flex-start" }}
-        >
-          <Text style={{ color: "white" }}>Nochmal scannen</Text>
-        </Pressable>
+          style={{ marginTop: spacing.xl }}
+        />
       </SafeAreaView>
     );
   }
@@ -91,7 +76,7 @@ export default function ScanScreen() {
       {busy && (
         <View style={{ position: "absolute", bottom: 24, left: 0, right: 0, alignItems: "center", gap: 8 }}>
           <ActivityIndicator />
-          <Text style={{ color: "white" }}>Produktdaten werden geladen…</Text>
+          <AppText type="p3" style={{ color: "#fff" }}>Produktdaten werden geladen…</AppText>
         </View>
       )}
     </View>
