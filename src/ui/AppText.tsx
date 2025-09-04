@@ -1,5 +1,5 @@
+import { colors, fonts, typography } from "@/src/theme";
 import { Text, TextProps } from "react-native";
-import { colors, fonts, typography } from "../theme";
 
 type TType =
   | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"

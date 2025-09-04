@@ -1,5 +1,5 @@
+import { colors, radius, spacing, typography } from "@/src/theme";
 import { Pressable, Text, ViewStyle } from "react-native";
-import { colors, radius, spacing, typography } from "../theme";
 
 type Variant = "primary" | "secondary" | "ghost";
 
@@ -48,9 +48,7 @@ export default function AppButton({
         style,
       ]}
     >
-      <Text style={[typography.p2b, { color: txt, textAlign: "center" }]}>
-        {title}
-      </Text>
+      <Text style={[typography.p2b, { color: txt, textAlign: "center" }]}>{title}</Text>
     </Pressable>
   );
 }
