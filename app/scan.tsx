@@ -73,12 +73,15 @@ export default function ScanScreen() {
     lockRef.current = false;
   };
 
-  if (result) {
-    // ❗ robust gegen fehlende Felder
-    const n = (result as any).nutrients ?? {};
-    const fmt = (v?: number, unit = "") =>
-      v === undefined ? "–" : `${Math.round(v)}${unit}`;
+  // Formatierung: kcal ohne Nachkommastellen, g mit genau 1 Nachkommastelle
+  const fmt = (v: number | undefined, unit: "kcal" | "g") => {
+    if (v == null || Number.isNaN(v)) return "–";
+    if (unit === "kcal") return `${Math.round(v)} kcal`;
+    return `${v.toFixed(1)} g`;
+  };
 
+  if (result) {
+    const n = result.nutrients ?? {};
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
@@ -89,11 +92,15 @@ export default function ScanScreen() {
           <View style={{ gap: spacing.xs }}>
             <AppText
               type="h2"
-              style={{ color: result.ok ? colors.primary_800 : colors.secondary_800 }}
+              style={{
+                color: result.ok ? colors.primary_800 : "#CC766A",
+              }}
             >
-              {result.ok ? "✅ Geeignet" : "⛔️ Nicht geeignet"}
+              {result.ok ? "✅ Geeignet" : "⛔ Nicht geeignet"}
             </AppText>
+
             <AppText type="p1b">{result.productName}</AppText>
+
             {result.category?.label ? (
               <AppText type="p3" muted>
                 Kategorie: {result.category.label}
@@ -131,15 +138,18 @@ export default function ScanScreen() {
                     borderRadius: radius.lg,
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: colors.primary_50 ?? "#F4F9F3",
+                    // ACHTUNG: in theme.ts heißt der Key primary_50 (ohne 0)
+                    backgroundColor: colors.primary_50,
                   }}
                 >
-                  <AppText type="p3" muted>Kein Bild verfügbar</AppText>
+                  <AppText type="p3" muted>
+                    Kein Bild verfügbar
+                  </AppText>
                 </View>
               )}
             </View>
 
-            {/* Nährwerte-Zeile */}
+            {/* Nährwerte */}
             <View
               style={{
                 backgroundColor: "#FFF5F3",
@@ -152,14 +162,16 @@ export default function ScanScreen() {
               }}
             >
               {[
-                { label: "Calories", value: fmt(n.energyKcal100, " kcal") },
-                { label: "Fat", value: fmt(n.fat100, "g") },
-                { label: "Sugar", value: fmt(n.sugars100, "g") },
-                { label: "Salt", value: fmt(n.salt100, "g") },
+                { label: "Kalorien", value: fmt(n.energyKcal100, "kcal") },
+                { label: "Fett", value: fmt(n.fat100, "g") },
+                { label: "Zucker", value: fmt(n.sugars100, "g") },
+                { label: "Salz", value: fmt(n.salt100, "g") },
               ].map((it, idx) => (
                 <View key={idx} style={{ alignItems: "center", flex: 1 }}>
-                  <AppText type="p3" muted>{it.label}</AppText>
-                  <AppText type="p1b" style={{ color: colors.secondary_700 }}>
+                  <AppText type="p3" muted>
+                    {it.label}
+                  </AppText>
+                  <AppText type="p1b" style={{ color: "#CC766A" }}>
                     {it.value}
                   </AppText>
                 </View>
@@ -177,7 +189,7 @@ export default function ScanScreen() {
 
             {/* Zutaten */}
             <View style={{ gap: spacing.sm }}>
-              <AppText type="h4">Ingredients</AppText>
+              <AppText type="h4">Zutaten</AppText>
               {result.ingredientsText ? (
                 <AppText type="p2" muted>{result.ingredientsText}</AppText>
               ) : (
@@ -187,7 +199,7 @@ export default function ScanScreen() {
 
             {/* Aktion */}
             <View style={{ gap: spacing.md, alignItems: "center" }}>
-              <AppButton title="Scan Again" onPress={resetScan} variant="ghost" />
+              <AppButton title="Erneut scannen" onPress={resetScan} variant="ghost" />
             </View>
           </View>
         </ScrollView>
