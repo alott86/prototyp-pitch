@@ -1,7 +1,19 @@
 // app/scan.tsx
-import { BarcodeScanningResult, CameraView, useCameraPermissions } from "expo-camera";
+import {
+  BarcodeScanningResult,
+  CameraView,
+  useCameraPermissions,
+} from "expo-camera";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { fetchProductByBarcode, ProductEval } from "../src/logic";
 import { colors, radius, spacing, typography } from "../src/theme";
@@ -37,15 +49,18 @@ export default function ScanScreen() {
     try {
       const r = await fetchProductByBarcode(value);
       if (!r.success) {
-        Alert.alert("Fehler", "Produkt nicht gefunden.", [{ text: "OK", onPress: () => resetScan() }], {
-          cancelable: true,
-        });
+        Alert.alert("Fehler", "Produkt nicht gefunden.", [
+          { text: "OK", onPress: () => resetScan() },
+        ]);
         return;
       }
       setResult(r);
       setScreen("result");
     } catch (err) {
-      Alert.alert("Fehler", "Beim Abrufen der Produktdaten ist ein Fehler aufgetreten.");
+      Alert.alert(
+        "Fehler",
+        "Beim Abrufen der Produktdaten ist ein Fehler aufgetreten."
+      );
     } finally {
       setBusy(false);
     }
@@ -53,12 +68,22 @@ export default function ScanScreen() {
 
   if (!permission?.granted) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg }}>
+      <SafeAreaView
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: spacing.lg,
+        }}
+      >
         <AppText type="p2" style={{ textAlign: "center" }}>
           Bitte Kamerazugriff erlauben, um Barcodes scannen zu können.
         </AppText>
         <View style={{ height: spacing.md }} />
-        <AppButton title="Zugriff erlauben" onPress={() => requestPermission()} />
+        <AppButton
+          title="Zugriff erlauben"
+          onPress={() => requestPermission()}
+        />
       </SafeAreaView>
     );
   }
@@ -68,11 +93,21 @@ export default function ScanScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
         <CameraView
           style={{ flex: 1 }}
-          barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_e", "upc_a", "qr"] }}
+          barcodeScannerSettings={{
+            barcodeTypes: ["ean13", "ean8", "upc_e", "upc_a", "qr"],
+          }}
           onBarcodeScanned={onScan}
         />
         {busy && (
-          <View style={{ position: "absolute", bottom: 24, left: 0, right: 0, alignItems: "center" }}>
+          <View
+            style={{
+              position: "absolute",
+              bottom: 24,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+            }}
+          >
             <ActivityIndicator />
             <AppText type="p3" muted style={{ marginTop: 6 }}>
               Produktdaten werden geladen…
@@ -93,18 +128,11 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
-        {/* Status */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-          <Text style={{ fontSize: 28 }}>{statusIcon}</Text>
-          <AppText type="h2" style={{ color: statusColor }}>
-            {statusText}
-          </AppText>
-        </View>
-
         {/* Titelzeile: Produktname · Marke */}
         {(result.productName || result.brand) && (
           <AppText type="h3" style={{ color: colors.text }}>
-            {result.productName || "Unbenannt"} {result.brand ? `· ${result.brand}` : ""}
+            {result.productName || "Unbenannt"}{" "}
+            {result.brand ? `· ${result.brand}` : ""}
           </AppText>
         )}
 
@@ -126,7 +154,10 @@ export default function ScanScreen() {
           }}
         >
           {result.imageUrl ? (
-            <Image source={{ uri: result.imageUrl }} style={{ width: "100%", height: 260, resizeMode: "cover" }} />
+            <Image
+              source={{ uri: result.imageUrl }}
+              style={{ width: "100%", height: 260, resizeMode: "cover" }}
+            />
           ) : (
             <View style={{ padding: spacing.xl, alignItems: "center" }}>
               <AppText type="p2" muted>
@@ -155,9 +186,27 @@ export default function ScanScreen() {
           </View>
         </View>
 
-        {/* WARUM? */}
+        {/* Geeignet / nicht geeignet */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            justifyContent: "center",
+            marginTop: spacing.sm,
+          }}
+        >
+          <Text style={{ fontSize: 28 }}>{statusIcon}</Text>
+          <AppText type="h2" style={{ color: statusColor }}>
+            {statusText}
+          </AppText>
+        </View>
+
+        {/* WARUM */}
         <View style={{ gap: spacing.sm }}>
-          <AppText type="h3">Warum {result.suitable ? "geeignet" : "nicht geeignet"}?</AppText>
+          <AppText type="h3">
+            Warum {result.suitable ? "geeignet" : "nicht geeignet"}?
+          </AppText>
           {result.reasons.map((r, i) => (
             <View key={i} style={{ flexDirection: "row", gap: spacing.sm }}>
               <Text>•</Text>
@@ -185,10 +234,15 @@ export default function ScanScreen() {
               Keine Zutatenliste verfügbar.
             </AppText>
           )}
-
-          {/* Gefundene Zuckerarten als kleine Chips */}
           {result.sugarsFound.length > 0 && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.sm }}>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 8,
+                marginTop: spacing.sm,
+              }}
+            >
               {result.sugarsFound.map((s) => (
                 <View
                   key={s}
@@ -229,14 +283,12 @@ function NCell({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Formatierung kcal (ohne Nachkommastellen) */
 function fmt(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = Math.round(v);
   return unit ? `${n} ${unit}` : String(n);
 }
 
-/** Eine Nachkommastelle (deutsche Schreibweise), z. B. „2,5 g“ */
 function fmtOne(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = v.toFixed(1).replace(".", ",");
