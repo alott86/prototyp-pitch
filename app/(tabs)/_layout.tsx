@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Tabs, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -20,6 +20,10 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="search" />
+
+      {/* WICHTIG: der Scan-Tab innerhalb von (tabs) */}
+      <Tabs.Screen name="scan" />
+
       <Tabs.Screen name="favorites" />
       <Tabs.Screen name="profile" />
     </Tabs>
@@ -27,7 +31,6 @@ export default function TabsLayout() {
 }
 
 function CustomBar({ state, navigation }: BottomTabBarProps) {
-  const router = useRouter();
   const currentRoute = state.routes[state.index]?.name;
 
   const goTo = (name: string) => {
@@ -49,10 +52,10 @@ function CustomBar({ state, navigation }: BottomTabBarProps) {
           onPress={() => goTo("search")}
         />
 
-        {/* Scan Button in der Mitte */}
+        {/* Scan-Button in der Mitte -> navigiert in den Scan-TAB */}
         <TouchableOpacity
           accessibilityRole="button"
-          onPress={() => router.push("/scan")}
+          onPress={() => goTo("scan")}
           style={styles.scanButton}
           activeOpacity={0.9}
         >
@@ -107,7 +110,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around", // gleichmäßige Verteilung
+    justifyContent: "space-around",
     paddingHorizontal: 12,
     shadowColor: "#000",
     shadowOpacity: 0.08,

@@ -1,4 +1,4 @@
-// app/scan.tsx
+// app/(tabs)/scan.tsx
 import {
   BarcodeScanningResult,
   CameraView,
@@ -15,10 +15,10 @@ import {
   View,
 } from "react-native";
 
-import { fetchProductByBarcode, ProductEval } from "../src/logic";
-import { colors, radius, spacing, typography } from "../src/theme";
-import AppButton from "../src/ui/AppButton";
-import AppText from "../src/ui/AppText";
+import { fetchProductByBarcode, ProductEval } from "../../src/logic";
+import { colors, radius, spacing, typography } from "../../src/theme";
+import AppButton from "../../src/ui/AppButton";
+import AppText from "../../src/ui/AppText";
 
 type Screen = "scan" | "result";
 
