@@ -1,10 +1,11 @@
 // app/(tabs)/scan.tsx
+import { useFocusEffect } from "@react-navigation/native";
 import {
   BarcodeScanningResult,
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
-import { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -36,6 +37,21 @@ export default function ScanScreen() {
   useEffect(() => {
     if (permission && !permission.granted) requestPermission();
   }, [permission]);
+
+  // Beim (Wieder-)Fokussieren des Tabs: immer auf Scanner zurücksetzen
+  useFocusEffect(
+    useCallback(() => {
+      setResult(null);
+      setScreen("scan");
+      setBusy(false);
+      lockRef.current = false;
+
+      return () => {
+        lockRef.current = false;
+        setBusy(false);
+      };
+    }, [])
+  );
 
   function resetScan() {
     setResult(null);
@@ -77,7 +93,7 @@ export default function ScanScreen() {
 
       setResult(evalData);
       setScreen("result");
-      ok = true; // Lock bleibt bis „Erneut scannen“
+      ok = true;
     } catch (err: any) {
       console.warn("SCAN ERROR:", err);
       Alert.alert(
@@ -97,7 +113,9 @@ export default function ScanScreen() {
 
   if (!permission?.granted) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg }}>
+      <SafeAreaView
+        style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg }}
+      >
         <AppText type="p2" style={{ textAlign: "center" }}>
           Bitte Kamerazugriff erlauben, um Barcodes scannen zu können.
         </AppText>
@@ -158,7 +176,10 @@ export default function ScanScreen() {
           }}
         >
           {result.imageUrl ? (
-            <Image source={{ uri: result.imageUrl }} style={{ width: "100%", height: 260, resizeMode: "cover" }} />
+            <Image
+              source={{ uri: result.imageUrl }}
+              style={{ width: "100%", height: 260, resizeMode: "cover" }}
+            />
           ) : (
             <View style={{ padding: spacing.xl, alignItems: "center" }}>
               <AppText type="p2" muted>Kein Bild verfügbar</AppText>
@@ -166,7 +187,16 @@ export default function ScanScreen() {
           )}
         </View>
 
-        <View style={{ borderRadius: radius.lg, backgroundColor: "#FEECE9", borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md }}>
+        <View
+          style={{
+            borderRadius: radius.lg,
+            backgroundColor: "#FEECE9",
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: spacing.lg,
+            gap: spacing.md,
+          }}
+        >
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             <NCell label="Kalorien" value={fmt(result.nutrition.kcal, "kcal")} />
             <NCell label="Fett" value={fmtOne(result.nutrition.fat, "g")} />
@@ -192,7 +222,9 @@ export default function ScanScreen() {
 
         <View style={{ gap: spacing.sm }}>
           <AppText type="h3">Details</AppText>
-          <AppText type="p2">{result.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}</AppText>
+          <AppText type="p2">
+            {result.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
+          </AppText>
         </View>
 
         <View style={{ gap: spacing.sm }}>
@@ -205,7 +237,17 @@ export default function ScanScreen() {
           {result.sugarsFound.length > 0 && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.sm }}>
               {result.sugarsFound.map((s) => (
-                <View key={s} style={{ paddingVertical: 6, paddingHorizontal: 10, backgroundColor: colors.secondary_50, borderRadius: 999, borderWidth: 1, borderColor: colors.border }}>
+                <View
+                  key={s}
+                  style={{
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    backgroundColor: colors.secondary_50,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
                   <Text style={{ fontSize: 12 }}>{s}</Text>
                 </View>
               ))}
@@ -221,6 +263,7 @@ export default function ScanScreen() {
   );
 }
 
+/** Helfer: Nährwert-Zelle */
 function NCell({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ width: "24%" }}>
@@ -229,11 +272,13 @@ function NCell({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
+
 function fmt(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = Math.round(v);
   return unit ? `${n} ${unit}` : String(n);
 }
+
 function fmtOne(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = v.toFixed(1).replace(".", ",");
