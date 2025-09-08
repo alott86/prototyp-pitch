@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -18,19 +18,19 @@ export default function TabsLayout() {
       }}
       tabBar={(props) => <CustomBar {...props} />}
     >
+      {/* sichtbare Tabs */}
       <Tabs.Screen name="home" />
       <Tabs.Screen name="search" />
-
-      {/* WICHTIG: der Scan-Tab innerhalb von (tabs) */}
-      <Tabs.Screen name="scan" />
-
       <Tabs.Screen name="favorites" />
       <Tabs.Screen name="profile" />
+      {/* zusätzlicher Screen innerhalb des Tab-Navigators, aber NICHT als Tab angezeigt */}
+      <Tabs.Screen name="product/[id]" options={{ href: null }} />
     </Tabs>
   );
 }
 
 function CustomBar({ state, navigation }: BottomTabBarProps) {
+  const router = useRouter();
   const currentRoute = state.routes[state.index]?.name;
 
   const goTo = (name: string) => {
@@ -40,7 +40,7 @@ function CustomBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={styles.wrapper}>
       <View style={styles.bar}>
-        {/* Linke Seite */}
+        {/* linke Seite */}
         <IconButton
           icon="home"
           active={currentRoute === "home"}
@@ -52,19 +52,20 @@ function CustomBar({ state, navigation }: BottomTabBarProps) {
           onPress={() => goTo("search")}
         />
 
-        {/* Scan-Button in der Mitte -> navigiert in den Scan-TAB */}
+        {/* Scan-Button in der Mitte (führt zu /scan innerhalb der Tabs-Gruppe) */}
         <TouchableOpacity
           accessibilityRole="button"
-          onPress={() => goTo("scan")}
+          onPress={() => router.push("/scan")}
           style={styles.scanButton}
           activeOpacity={0.9}
         >
           <Feather name="camera" size={28} color="#ffffff" />
         </TouchableOpacity>
 
-        {/* Rechte Seite */}
+        {/* rechte Seite */}
+        {/* Verlauf: statt heart -> clipboard (Feather) */}
         <IconButton
-          icon="heart"
+          icon="clipboard"
           active={currentRoute === "favorites"}
           onPress={() => goTo("favorites")}
         />

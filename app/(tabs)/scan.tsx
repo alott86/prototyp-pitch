@@ -255,9 +255,7 @@ export default function ScanScreen() {
           )}
         </View>
 
-        <View style={{ alignItems: "center", marginTop: spacing.md }}>
-          <AppButton title="Erneut scannen" onPress={resetScan} variant="ghost" />
-        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
