@@ -1,18 +1,20 @@
-// app/(tabs)/favorites.tsx
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { FlatList, Image, SafeAreaView, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { clearRecents, getRecents, RecentItem, removeRecent } from "../../src/history";
+import { getRecents, RecentItem, removeRecent } from "../../src/history";
 import { colors, radius, spacing } from "../../src/theme";
 import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
+import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const [items, setItems] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const bottomPad = useTabBarPadding(spacing.lg);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -21,11 +23,9 @@ export default function FavoritesScreen() {
     setLoading(false);
   }, []);
 
-  // Beim Fokussieren des Tabs: Verlauf neu laden
   useFocusEffect(
     useCallback(() => {
       load();
-      // kein Cleanup nötig
       return () => {};
     }, [load])
   );
@@ -44,16 +44,10 @@ export default function FavoritesScreen() {
         borderBottomColor: colors.border,
       }}
     >
-      {/* Bild / Platzhalter */}
       {item.imageUrl ? (
         <Image
           source={{ uri: item.imageUrl }}
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: radius.md,
-            backgroundColor: colors.primary_50,
-          }}
+          style={{ width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.primary_50 }}
         />
       ) : (
         <View
@@ -72,15 +66,11 @@ export default function FavoritesScreen() {
         </View>
       )}
 
-      {/* Texte */}
       <View style={{ flex: 1 }}>
-        <AppText type="p2" style={{ color: colors.text }}>
-          {item.name || "Unbenannt"}
-        </AppText>
+        <AppText type="p2" style={{ color: colors.text }}>{item.name || "Unbenannt"}</AppText>
         {item.brand ? <AppText type="p3" muted>{item.brand}</AppText> : null}
       </View>
 
-      {/* Entfernen */}
       <AppButton
         title="Entfernen"
         variant="ghost"
@@ -93,7 +83,7 @@ export default function FavoritesScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <AppText type="h2" style={{ color: colors.text }}>Verlauf</AppText>
         <AppText type="p3" muted>
@@ -105,7 +95,7 @@ export default function FavoritesScreen() {
         data={items}
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingTop: spacing.md }}
+        contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: bottomPad }}
         ListEmptyComponent={
           <View style={{ padding: spacing.lg }}>
             <AppText type="p2" muted>Noch keine Einträge vorhanden.</AppText>
@@ -114,19 +104,6 @@ export default function FavoritesScreen() {
         refreshing={loading}
         onRefresh={load}
       />
-
-      {items.length > 0 && (
-        <View style={{ padding: spacing.lg }}>
-          <AppButton
-            title="Verlauf leeren"
-            variant="ghost"
-            onPress={async () => {
-              await clearRecents();
-              load();
-            }}
-          />
-        </View>
-      )}
     </SafeAreaView>
   );
 }

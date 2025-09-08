@@ -10,25 +10,31 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  SafeAreaView,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { addRecent } from "../../src/history";
 import { fetchProductByBarcode, ProductEval } from "../../src/logic";
 import { colors, radius, spacing, typography } from "../../src/theme";
-import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
+import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
 type Screen = "scan" | "result";
 
 export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
+
   const [busy, setBusy] = useState(false);
   const [screen, setScreen] = useState<Screen>("scan");
   const [result, setResult] = useState<ProductEval | null>(null);
+
+  // NEU: Kamera explizit steuern
+  const [cameraOn, setCameraOn] = useState(true);
+
+  const bottomPad = useTabBarPadding(spacing.lg);
 
   const lockRef = useRef(false);
   const lastScanTsRef = useRef<number>(0);
@@ -38,33 +44,30 @@ export default function ScanScreen() {
     if (permission && !permission.granted) requestPermission();
   }, [permission]);
 
-  // Beim (Wieder-)Fokussieren des Tabs: immer auf Scanner zurücksetzen
+  // Beim (Wieder-)Fokussieren des Tabs zurück in den Scan-Modus
   useFocusEffect(
     useCallback(() => {
       setResult(null);
       setScreen("scan");
       setBusy(false);
+      setCameraOn(true);        // << Kamera wieder aktivieren
       lockRef.current = false;
 
       return () => {
+        // Beim Verlassen des Tabs Kamera sicher deaktivieren
+        setCameraOn(false);
         lockRef.current = false;
         setBusy(false);
       };
     }, [])
   );
 
-  function resetScan() {
-    setResult(null);
-    setScreen("scan");
-    lockRef.current = false;
-    setBusy(false);
-  }
-
   async function onScan(e: BarcodeScanningResult) {
     if (busy || lockRef.current) return;
     const code = e.data?.trim();
     if (!code) return;
 
+    // Doppelscan-Guard
     const now = Date.now();
     if (code === lastCodeRef.current && now - lastScanTsRef.current < 2000) return;
     lastCodeRef.current = code;
@@ -73,17 +76,26 @@ export default function ScanScreen() {
     lockRef.current = true;
     setBusy(true);
 
+    // *** WICHTIG: Kamera sofort ausschalten, damit sie garantiert stoppt ***
+    setCameraOn(false);
+
     let ok = false;
     try {
       const evalData = await fetchProductByBarcode(code);
-
       if (!evalData) {
         Alert.alert("Nicht gefunden", "Für diesen Barcode wurden keine Produktdaten gefunden.", [
-          { text: "OK", onPress: () => resetScan() },
+          { text: "OK", onPress: () => {
+              // zurück in Scan-Modus, Kamera wieder an
+              setScreen("scan");
+              setCameraOn(true);
+              setBusy(false);
+              lockRef.current = false;
+            } },
         ]);
         return;
       }
 
+      // Verlauf aktualisieren
       await addRecent({
         id: code,
         name: evalData.productName ?? "Unbenannt",
@@ -92,49 +104,63 @@ export default function ScanScreen() {
       });
 
       setResult(evalData);
-      setScreen("result");
+      setScreen("result"); // Kamera bleibt aus
       ok = true;
-    } catch (err: any) {
-      console.warn("SCAN ERROR:", err);
-      Alert.alert(
-        "Fehler",
-        `Beim Abrufen der Produktdaten ist ein Fehler aufgetreten.\n\n${String(
-          err?.message || err
-        )}`,
-        [{ text: "OK", onPress: () => resetScan() }]
-      );
+    } catch {
+      Alert.alert("Fehler", "Beim Abrufen der Produktdaten ist ein Fehler aufgetreten.", [
+        { text: "OK", onPress: () => {
+            // bei Fehler zurück in Scan-Modus und Kamera wieder an
+            setScreen("scan");
+            setCameraOn(true);
+            setBusy(false);
+            lockRef.current = false;
+          } },
+      ]);
     } finally {
       if (!ok) {
-        setBusy(false);
-        lockRef.current = false;
+        // falls kein Erfolg, Busy im OK-Handler oben zurückgesetzt
+      } else {
+        setBusy(false); // Ergebnis wird angezeigt, Kamera bleibt AUS
       }
     }
   }
 
+  // Kameraerlaubnis
   if (!permission?.granted) {
     return (
-      <SafeAreaView
-        style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg }}
-      >
-        <AppText type="p2" style={{ textAlign: "center" }}>
-          Bitte Kamerazugriff erlauben, um Barcodes scannen zu können.
-        </AppText>
-        <View style={{ height: spacing.md }} />
-        <AppButton title="Zugriff erlauben" onPress={() => requestPermission()} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg }}>
+          <AppText type="p2" style={{ textAlign: "center" }}>
+            Bitte Kamerazugriff erlauben, um Barcodes scannen zu können.
+          </AppText>
+        </View>
       </SafeAreaView>
     );
   }
 
+  // Scan-Modus
   if (screen === "scan") {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <CameraView
-          style={{ flex: 1 }}
-          barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_e", "upc_a", "qr"] }}
-          onBarcodeScanned={onScan}
-        />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+        {/* CameraView wird NUR gerendert, wenn cameraOn == true */}
+        {cameraOn && (
+          <CameraView
+            style={{ flex: 1 }}
+            barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_e", "upc_a", "qr"] }}
+            onBarcodeScanned={onScan}
+          />
+        )}
+
         {busy && (
-          <View style={{ position: "absolute", bottom: 24, left: 0, right: 0, alignItems: "center" }}>
+          <View
+            style={{
+              position: "absolute",
+              bottom: 24,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+            }}
+          >
             <ActivityIndicator />
             <AppText type="p3" muted style={{ marginTop: 6 }}>
               Produktdaten werden geladen…
@@ -145,6 +171,7 @@ export default function ScanScreen() {
     );
   }
 
+  // Ergebnis-Modus (Kamera ist AUS)
   if (!result) return null;
 
   const statusColor = result.suitable ? colors.primary_700 : colors.secondary_700;
@@ -152,8 +179,14 @@ export default function ScanScreen() {
   const statusText = result.suitable ? "Geeignet" : "Nicht geeignet";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: spacing.lg,
+          gap: spacing.lg,
+          paddingBottom: bottomPad,
+        }}
+      >
         {(result.productName || result.brand) && (
           <AppText type="h3" style={{ color: colors.text }}>
             {result.productName || "Unbenannt"} {result.brand ? `· ${result.brand}` : ""}
@@ -176,10 +209,7 @@ export default function ScanScreen() {
           }}
         >
           {result.imageUrl ? (
-            <Image
-              source={{ uri: result.imageUrl }}
-              style={{ width: "100%", height: 260, resizeMode: "cover" }}
-            />
+            <Image source={{ uri: result.imageUrl }} style={{ width: "100%", height: 260, resizeMode: "cover" }} />
           ) : (
             <View style={{ padding: spacing.xl, alignItems: "center" }}>
               <AppText type="p2" muted>Kein Bild verfügbar</AppText>
@@ -223,45 +253,19 @@ export default function ScanScreen() {
         <View style={{ gap: spacing.sm }}>
           <AppText type="h3">Details</AppText>
           <AppText type="p2">
-            {result.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
+            {result.description?.trim() ||
+              "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
           </AppText>
         </View>
 
-        <View style={{ gap: spacing.sm }}>
-          <AppText type="h3">Zutaten</AppText>
-          {result.ingredientsText ? (
-            <AppText type="p2">{result.ingredientsText}</AppText>
-          ) : (
-            <AppText type="p2" muted>Keine Zutatenliste verfügbar.</AppText>
-          )}
-          {result.sugarsFound.length > 0 && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.sm }}>
-              {result.sugarsFound.map((s) => (
-                <View
-                  key={s}
-                  style={{
-                    paddingVertical: 6,
-                    paddingHorizontal: 10,
-                    backgroundColor: colors.secondary_50,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 12 }}>{s}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-
+        {/* zusätzlicher Spacer, damit nichts unter der Tab-Bar verschwindet */}
+        <View style={{ height: bottomPad }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/** Helfer: Nährwert-Zelle */
+/** Helfer-Komponenten & Formatter */
 function NCell({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ width: "24%" }}>
@@ -270,13 +274,11 @@ function NCell({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
 function fmt(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = Math.round(v);
   return unit ? `${n} ${unit}` : String(n);
 }
-
 function fmtOne(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = v.toFixed(1).replace(".", ",");

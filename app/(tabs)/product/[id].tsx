@@ -1,29 +1,22 @@
-// app/(tabs)/product/[id].tsx
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fetchProductByBarcode, ProductEval } from "../../../src/logic";
 import { colors, radius, spacing, typography } from "../../../src/theme";
 import AppText from "../../../src/ui/AppText";
+import { useTabBarPadding } from "../../../src/ui/tabBarInset";
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-
   const [busy, setBusy] = useState(true);
   const [data, setData] = useState<ProductEval | null>(null);
+  const bottomPad = useTabBarPadding(spacing.lg);
 
   useEffect(() => {
     let alive = true;
-    async function load() {
+    (async () => {
       try {
         const res = await fetchProductByBarcode(String(id || "").trim());
         if (!alive) return;
@@ -32,31 +25,25 @@ export default function ProductDetailScreen() {
           return;
         }
         setData(res);
-      } catch (e) {
+      } catch {
         Alert.alert("Fehler", "Beim Abrufen der Produktdaten ist ein Fehler aufgetreten.");
       } finally {
         if (alive) setBusy(false);
       }
-    }
-    load();
-    return () => {
-      alive = false;
-    };
+    })();
+    return () => { alive = false; };
   }, [id]);
 
   if (busy) {
     return (
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" }}
-      >
-        <ActivityIndicator />
-        <AppText type="p3" muted style={{ marginTop: 6 }}>
-          Produktdaten werden geladen…
-        </AppText>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator />
+          <AppText type="p3" muted style={{ marginTop: 6 }}>Produktdaten werden geladen…</AppText>
+        </View>
       </SafeAreaView>
     );
   }
-
   if (!data) return null;
 
   const statusColor = data.suitable ? colors.primary_700 : colors.secondary_700;
@@ -64,8 +51,14 @@ export default function ProductDetailScreen() {
   const statusText = data.suitable ? "Geeignet" : "Nicht geeignet";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+      <ScrollView
+        contentContainerStyle={{
+          padding: spacing.lg,
+          gap: spacing.lg,
+          paddingBottom: bottomPad,
+        }}
+      >
         {(data.productName || data.brand) && (
           <AppText type="h3" style={{ color: colors.text }}>
             {data.productName || "Unbenannt"} {data.brand ? `· ${data.brand}` : ""}
@@ -78,15 +71,7 @@ export default function ProductDetailScreen() {
           </AppText>
         )}
 
-        <View
-          style={{
-            backgroundColor: colors.primary_50,
-            borderRadius: radius.lg,
-            overflow: "hidden",
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
+        <View style={{ backgroundColor: colors.primary_50, borderRadius: radius.lg, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
           {data.imageUrl ? (
             <Image source={{ uri: data.imageUrl }} style={{ width: "100%", height: 260, resizeMode: "cover" }} />
           ) : (
@@ -96,16 +81,7 @@ export default function ProductDetailScreen() {
           )}
         </View>
 
-        <View
-          style={{
-            borderRadius: radius.lg,
-            backgroundColor: "#FEECE9",
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: spacing.lg,
-            gap: spacing.md,
-          }}
-        >
+        <View style={{ borderRadius: radius.lg, backgroundColor: "#FEECE9", borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             <NCell label="Kalorien" value={fmt(data.nutrition.kcal, "kcal")} />
             <NCell label="Fett" value={fmtOne(data.nutrition.fat, "g")} />
@@ -136,33 +112,8 @@ export default function ProductDetailScreen() {
           </AppText>
         </View>
 
-        <View style={{ gap: spacing.sm }}>
-          <AppText type="h3">Zutaten</AppText>
-          {data.ingredientsText ? (
-            <AppText type="p2">{data.ingredientsText}</AppText>
-          ) : (
-            <AppText type="p2" muted>Keine Zutatenliste verfügbar.</AppText>
-          )}
-          {data.sugarsFound.length > 0 && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.sm }}>
-              {data.sugarsFound.map((s) => (
-                <View
-                  key={s}
-                  style={{
-                    paddingVertical: 6,
-                    paddingHorizontal: 10,
-                    backgroundColor: colors.secondary_50,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text style={{ fontSize: 12 }}>{s}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
+        {/* expliziter Spacer, damit nichts unter der Bar liegt */}
+        <View style={{ height: bottomPad }} />
       </ScrollView>
     </SafeAreaView>
   );
