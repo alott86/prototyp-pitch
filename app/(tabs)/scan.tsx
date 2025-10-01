@@ -127,6 +127,7 @@ export default function ScanScreen() {
         name: candidate!.productName ?? "Unbenannt",
         brand: candidate!.brand ?? null,
         imageUrl: candidate!.imageUrl ?? null,
+        suitable: candidate!.suitable ?? null,
       });
 
       // Ergebnis anzeigen

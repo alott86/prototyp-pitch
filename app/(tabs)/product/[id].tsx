@@ -21,7 +21,7 @@ export default function ProductDetailScreen() {
   const [data, setData] = useState<ProductEval | null>(null);
   const bottomPad = useTabBarPadding(spacing.lg);
   const insets = useSafeAreaInsets();
-  const overlayTop = insets.top + spacing.lg;
+  const overlayTop = Math.max(insets.top + spacing.sm, spacing.lg);
   const contentTop = overlayTop + SETTINGS_OVERLAY_HEIGHT + spacing.lg;
 
   const renderSettingsButton = () => (

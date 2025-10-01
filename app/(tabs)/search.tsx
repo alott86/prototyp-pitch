@@ -24,7 +24,7 @@ export default function ManualSearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
 
-  const overlayTop = insets.top + spacing.lg;
+  const overlayTop = Math.max(insets.top + spacing.sm, spacing.lg);
   const contentTop = overlayTop + SETTINGS_OVERLAY_HEIGHT + spacing.lg;
 
   async function onSubmit() {
@@ -44,6 +44,7 @@ export default function ManualSearchScreen() {
         name: data.productName ?? "Unbenannt",
         brand: data.brand ?? null,
         imageUrl: data.imageUrl ?? null,
+        suitable: data.suitable ?? null,
       });
       setResult(data);
     } finally {
