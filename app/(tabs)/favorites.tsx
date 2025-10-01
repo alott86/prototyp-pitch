@@ -10,9 +10,7 @@ import { colors, radius, spacing } from "../../src/theme";
 import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
 import ProfileHeader from "../../src/ui/ProfileHeader";
-import SettingsButtonOverlay, {
-  SETTINGS_OVERLAY_HEIGHT,
-} from "../../src/ui/SettingsButtonOverlay";
+import SettingsButton from "../../src/ui/SettingsButton";
 import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
 export default function FavoritesScreen() {
@@ -20,8 +18,7 @@ export default function FavoritesScreen() {
   const [items, setItems] = useState<RecentItem[]>([]);
   const bottomPad = useTabBarPadding(spacing.lg);
   const insets = useSafeAreaInsets();
-  const overlayTop = Math.max(insets.top + spacing.sm, spacing.lg);
-  const contentTop = overlayTop + SETTINGS_OVERLAY_HEIGHT + spacing.lg;
+  const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
 
   const load = useCallback(async () => {
     const list = await getRecents();
@@ -42,15 +39,18 @@ export default function FavoritesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SettingsButtonOverlay onPress={() => router.push("/(tabs)/profile")} offset={spacing.sm} />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: contentTop,
+          paddingTop: topPadding,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
       >
+        <View style={{ alignItems: "flex-end" }}>
+          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+        </View>
+
         <ProfileHeader
           title="Verlauf"
           subtitle="Deine letzten Scans, schnell wiederfinden."

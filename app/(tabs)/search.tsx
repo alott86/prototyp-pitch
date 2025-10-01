@@ -10,9 +10,7 @@ import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
 import ProfileHeader from "../../src/ui/ProfileHeader";
 import SectionCard from "../../src/ui/SectionCard";
-import SettingsButtonOverlay, {
-  SETTINGS_OVERLAY_HEIGHT,
-} from "../../src/ui/SettingsButtonOverlay";
+import SettingsButton from "../../src/ui/SettingsButton";
 import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
 export default function ManualSearchScreen() {
@@ -24,8 +22,7 @@ export default function ManualSearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
 
-  const overlayTop = Math.max(insets.top + spacing.sm, spacing.lg);
-  const contentTop = overlayTop + SETTINGS_OVERLAY_HEIGHT + spacing.lg;
+  const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
 
   async function onSubmit() {
     const code = barcode.trim();
@@ -54,16 +51,19 @@ export default function ManualSearchScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SettingsButtonOverlay onPress={() => router.push("/(tabs)/profile")} offset={spacing.sm} />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: contentTop,
+          paddingTop: topPadding,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
       >
+        <View style={{ alignItems: "flex-end" }}>
+          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+        </View>
+
         <ProfileHeader
           title="Manuelle Suche"
           subtitle="Gib den Barcode ein, wenn du nicht scannen kannst."

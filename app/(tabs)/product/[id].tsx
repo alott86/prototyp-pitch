@@ -9,9 +9,7 @@ import { colors, radius, spacing } from "../../../src/theme";
 import AppText from "../../../src/ui/AppText";
 import ProfileHeader from "../../../src/ui/ProfileHeader";
 import SectionCard from "../../../src/ui/SectionCard";
-import SettingsButtonOverlay, {
-  SETTINGS_OVERLAY_HEIGHT,
-} from "../../../src/ui/SettingsButtonOverlay";
+import SettingsButton from "../../../src/ui/SettingsButton";
 import { useTabBarPadding } from "../../../src/ui/tabBarInset";
 
 export default function ProductDetailScreen() {
@@ -21,12 +19,7 @@ export default function ProductDetailScreen() {
   const [data, setData] = useState<ProductEval | null>(null);
   const bottomPad = useTabBarPadding(spacing.lg);
   const insets = useSafeAreaInsets();
-  const overlayTop = Math.max(insets.top + spacing.sm, spacing.lg);
-  const contentTop = overlayTop + SETTINGS_OVERLAY_HEIGHT + spacing.lg;
-
-  const renderSettingsButton = () => (
-    <SettingsButtonOverlay onPress={() => router.push("/(tabs)/profile")} offset={spacing.sm} />
-  );
+  const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
 
   useEffect(() => {
     let alive = true;
@@ -53,7 +46,6 @@ export default function ProductDetailScreen() {
   if (busy) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        {renderSettingsButton()}
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator />
           <AppText type="p3" muted style={{ marginTop: 6 }}>
@@ -73,15 +65,18 @@ export default function ProductDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      {renderSettingsButton()}
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: contentTop,
+          paddingTop: topPadding,
           gap: spacing.xl,
           paddingBottom: bottomPad,
         }}
       >
+        <View style={{ alignItems: "flex-end" }}>
+          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+        </View>
+
         <ProfileHeader
           title={data.productName || "Unbekanntes Produkt"}
           subtitle={data.brand || "Marke unbekannt"}
