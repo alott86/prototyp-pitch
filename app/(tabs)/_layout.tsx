@@ -19,7 +19,6 @@ export default function TabsLayout() {
       tabBar={(props) => <CustomBar {...props} />}
     >
       {/* sichtbare Tabs */}
-      <Tabs.Screen name="home" />
       <Tabs.Screen name="search" />
       <Tabs.Screen name="favorites" />
       <Tabs.Screen name="profile" />
@@ -42,11 +41,6 @@ function CustomBar({ state, navigation }: BottomTabBarProps) {
       <View style={styles.bar}>
         {/* linke Seite */}
         <IconButton
-          icon="home"
-          active={currentRoute === "home"}
-          onPress={() => goTo("home")}
-        />
-        <IconButton
           icon="search"
           active={currentRoute === "search"}
           onPress={() => goTo("search")}
@@ -68,11 +62,6 @@ function CustomBar({ state, navigation }: BottomTabBarProps) {
           icon="clipboard"
           active={currentRoute === "favorites"}
           onPress={() => goTo("favorites")}
-        />
-        <IconButton
-          icon="user"
-          active={currentRoute === "profile"}
-          onPress={() => goTo("profile")}
         />
       </View>
     </View>

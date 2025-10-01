@@ -1,19 +1,32 @@
 // app/(tabs)/product/[id].tsx
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fetchProductByBarcode, ProductEval } from "../../../src/logic";
 import { colors, radius, spacing } from "../../../src/theme";
 import AppText from "../../../src/ui/AppText";
+import ProfileHeader from "../../../src/ui/ProfileHeader";
+import SectionCard from "../../../src/ui/SectionCard";
+import SettingsButtonOverlay, {
+  SETTINGS_OVERLAY_HEIGHT,
+} from "../../../src/ui/SettingsButtonOverlay";
 import { useTabBarPadding } from "../../../src/ui/tabBarInset";
 
 export default function ProductDetailScreen() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [busy, setBusy] = useState(true);
   const [data, setData] = useState<ProductEval | null>(null);
   const bottomPad = useTabBarPadding(spacing.lg);
+  const insets = useSafeAreaInsets();
+  const overlayTop = insets.top + spacing.lg;
+  const contentTop = overlayTop + SETTINGS_OVERLAY_HEIGHT + spacing.lg;
+
+  const renderSettingsButton = () => (
+    <SettingsButtonOverlay onPress={() => router.push("/(tabs)/profile")} offset={spacing.sm} />
+  );
 
   useEffect(() => {
     let alive = true;
@@ -39,14 +52,15 @@ export default function ProductDetailScreen() {
 
   if (busy) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        {renderSettingsButton()}
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator />
           <AppText type="p3" muted style={{ marginTop: 6 }}>
             Produktdaten werden geladen…
           </AppText>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -55,109 +69,135 @@ export default function ProductDetailScreen() {
   const statusColor = data.suitable ? colors.primary_700 : colors.secondary_700;
   const statusIcon = data.suitable ? "✅" : "⛔";
   const statusText = data.suitable ? "Geeignet" : "Nicht geeignet";
+  const reasons = Array.isArray(data.reasons) ? data.reasons : [];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {renderSettingsButton()}
       <ScrollView
         contentContainerStyle={{
-          padding: spacing.lg,
-          gap: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingTop: contentTop,
+          gap: spacing.xl,
           paddingBottom: bottomPad,
         }}
       >
-        {/* === Titelblock: Produktname (h2) + Marke (p2) === */}
-        {(data.productName || data.brand) && (
-          <View style={{ gap: 4 }}>
-            {data.productName ? <AppText type="h2">{data.productName}</AppText> : null}
-            {data.brand ? <AppText type="p2">{data.brand}</AppText> : null}
-          </View>
-        )}
+        <ProfileHeader
+          title={data.productName || "Unbekanntes Produkt"}
+          subtitle={data.brand || "Marke unbekannt"}
+          icon="package"
+        />
 
-        {/* Kategorie (optional) */}
-        {data.category && (
-          <AppText type="p3" muted>
-            Kategorie: {data.categoryPath?.join(" – ") || data.category}
-          </AppText>
-        )}
+        <SectionCard
+          title="Überblick"
+          items={[
+            { icon: "tag", label: "Marke", description: data.brand || "Keine Angabe" },
+            {
+              icon: "layers",
+              label: "Kategorie",
+              description: data.categoryPath?.join(" · ") || data.category || "Keine Angabe",
+            },
+          ]}
+        />
 
-        {/* Bild */}
         <View
           style={{
             backgroundColor: colors.primary_50,
             borderRadius: radius.lg,
-            overflow: "hidden",
             borderWidth: 1,
             borderColor: colors.border,
+            overflow: "hidden",
           }}
         >
           {data.imageUrl ? (
-            <Image source={{ uri: data.imageUrl }} style={{ width: "100%", height: 260, resizeMode: "cover" }} />
+            <Image source={{ uri: data.imageUrl }} style={{ width: "100%", height: 220, resizeMode: "cover" }} />
           ) : (
             <View style={{ padding: spacing.xl, alignItems: "center" }}>
-              <AppText type="p2" muted>Kein Bild verfügbar</AppText>
+              <AppText type="p3" muted>Kein Bild verfügbar</AppText>
             </View>
           )}
         </View>
 
-        {/* Nährwerte – neues Design */}
-        <View
-          style={{
-            borderRadius: radius.lg,
-            backgroundColor: "#FFFAF0",
-            borderWidth: 1,
-            borderColor: "#FFE0D9",
-            paddingVertical: spacing.lg,
-            paddingHorizontal: spacing.lg,
-          }}
-        >
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <NutriCell label="Kalorien" value={fmt(data.nutrition.kcal, "kcal")} />
-            <NutriCell label="Fett" value={fmtOne(data.nutrition.fat, "g")} />
-            <NutriCell label="Zucker" value={fmtOne(data.nutrition.sugars, "g")} />
-            <NutriCell label="Salz" value={fmtOne(data.nutrition.salt, "g")} />
-          </View>
-        </View>
+        <SectionCard
+          title="Bewertung"
+          items={[
+            {
+              content: (
+                <View style={{ alignItems: "center", gap: spacing.sm }}>
+                  <Text style={{ fontSize: 40 }}>{statusIcon}</Text>
+                  <AppText type="h2" style={{ color: statusColor }}>
+                    {statusText}
+                  </AppText>
+                </View>
+              ),
+            },
+          ]}
+        />
 
-        {/* Status */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, justifyContent: "center", marginTop: spacing.sm }}>
-          <Text style={{ fontSize: 28 }}>{statusIcon}</Text>
-          <AppText type="h2" style={{ color: statusColor }}>{statusText}</AppText>
-        </View>
+        <SectionCard
+          title="Nährwerte je 100g"
+          items={[
+            {
+              content: (
+                <View
+                  style={{
+                    borderRadius: radius.lg,
+                    backgroundColor: "#FFFAF0",
+                    borderWidth: 1,
+                    borderColor: "#FFE0D9",
+                    paddingVertical: spacing.lg,
+                    paddingHorizontal: spacing.lg,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <NutriCell label="Kalorien" value={fmt(data.nutrition.kcal, "kcal")} />
+                    <NutriCell label="Fett" value={fmtOne(data.nutrition.fat, "g")} />
+                    <NutriCell label="Zucker" value={fmtOne(data.nutrition.sugars, "g")} />
+                    <NutriCell label="Salz" value={fmtOne(data.nutrition.salt, "g")} />
+                  </View>
+                </View>
+              ),
+            },
+          ]}
+        />
 
-        {/* === Warum === */}
-        <View style={{ gap: spacing.xs }}>
-          <AppText type="h4">Warum {data.suitable ? "geeignet" : "nicht geeignet"}?</AppText>
-          {data.reasons.map((r, i) => (
-            <View key={i} style={{ flexDirection: "row", gap: 8 }}>
-              <Text>•</Text>
-              <AppText type="p3" style={{ flex: 1 }}>{r}</AppText>
-            </View>
-          ))}
-        </View>
+        {reasons.length ? (
+          <SectionCard
+            title="Warum diese Bewertung?"
+            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
+          />
+        ) : null}
 
-        {/* === Details === */}
-        <View style={{ gap: spacing.xs }}>
-          <AppText type="h4">Details</AppText>
-          <AppText type="p3">
-            {data.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
-          </AppText>
-        </View>
+        <SectionCard
+          title="Details"
+          items={[
+            {
+              content: (
+                <AppText type="p3">
+                  {data.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
+                </AppText>
+              ),
+            },
+          ]}
+        />
 
-        {/* === Zutaten === */}
-        <View style={{ gap: spacing.xs }}>
-          <AppText type="h4">Zutaten</AppText>
-
-          {(() => {
-            const ing = getIngredientsTextFromData(data);
-            if (ing) return <AppText type="p3">{ing}</AppText>;
-            return <AppText type="p3">Keine Zutatenliste verfügbar.</AppText>;
-          })()}
-        </View>
-
-        {/* Extra-Abstand am Ende */}
-        <View style={{ height: bottomPad }} />
+        <SectionCard
+          title="Zutaten"
+          items={[
+            {
+              content: (
+                <AppText type="p3">
+                  {(() => {
+                    const ing = getIngredientsTextFromData(data);
+                    return ing || "Keine Zutatenliste verfügbar.";
+                  })()}
+                </AppText>
+              ),
+            },
+          ]}
+        />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
