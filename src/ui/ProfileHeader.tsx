@@ -11,21 +11,31 @@ type Props = {
   icon?: React.ComponentProps<typeof Feather>["name"];
   accent?: React.ComponentProps<typeof Feather>["name"];
   accentColor?: string;
+  showAvatar?: boolean;
 };
 
-export default function ProfileHeader({ title, subtitle, icon = "user", accent, accentColor }: Props) {
+export default function ProfileHeader({
+  title,
+  subtitle,
+  icon = "user",
+  accent,
+  accentColor,
+  showAvatar = true,
+}: Props) {
   return (
     <View style={styles.wrapper}>
-      <View style={styles.avatarWrapper}>
-        <View style={styles.avatarCircle}>
-          <Feather name={icon} size={42} color={colors.primary_700} />
-        </View>
-        {accent ? (
-          <View style={[styles.accentBadge, { backgroundColor: accentColor ?? colors.secondary_200 }]}> 
-            <Feather name={accent} size={16} color={colors.secondary_600} />
+      {showAvatar ? (
+        <View style={styles.avatarWrapper}>
+          <View style={styles.avatarCircle}>
+            <Feather name={icon} size={42} color={colors.primary_700} />
           </View>
-        ) : null}
-      </View>
+          {accent ? (
+            <View style={[styles.accentBadge, { backgroundColor: accentColor ?? colors.secondary_200 }]}> 
+              <Feather name={accent} size={16} color={colors.secondary_600} />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       <AppText type="h2" style={{ color: colors.text, textAlign: "center" }}>
         {title}

@@ -55,6 +55,7 @@ export default function FavoritesScreen() {
           title="Verlauf"
           subtitle="Deine letzten Scans, schnell wiederfinden."
           icon="clipboard"
+          showAvatar={false}
         />
 
         {items.length ? (

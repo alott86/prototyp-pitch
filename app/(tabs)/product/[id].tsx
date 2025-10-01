@@ -2,6 +2,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fetchProductByBarcode, ProductEval } from "../../../src/logic";
@@ -59,8 +60,10 @@ export default function ProductDetailScreen() {
   if (!data) return null;
 
   const statusColor = data.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusIcon = data.suitable ? "✅" : "⛔";
   const statusText = data.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = data.suitable ? colors.primary_100 : colors.secondary_100;
+  const statusIcon: React.ComponentProps<typeof Feather>["name"] =
+    data.suitable === false ? "x-circle" : data.suitable === true ? "check-circle" : "help-circle";
   const reasons = Array.isArray(data.reasons) ? data.reasons : [];
 
   return (
@@ -81,18 +84,7 @@ export default function ProductDetailScreen() {
           title={data.productName || "Unbekanntes Produkt"}
           subtitle={data.brand || "Marke unbekannt"}
           icon="package"
-        />
-
-        <SectionCard
-          title="Überblick"
-          items={[
-            { icon: "tag", label: "Marke", description: data.brand || "Keine Angabe" },
-            {
-              icon: "layers",
-              label: "Kategorie",
-              description: data.categoryPath?.join(" · ") || data.category || "Keine Angabe",
-            },
-          ]}
+          showAvatar={false}
         />
 
         <View
@@ -119,7 +111,18 @@ export default function ProductDetailScreen() {
             {
               content: (
                 <View style={{ alignItems: "center", gap: spacing.sm }}>
-                  <Text style={{ fontSize: 40 }}>{statusIcon}</Text>
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: radius.pill,
+                      backgroundColor: statusBg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Feather name={statusIcon} size={28} color={statusColor} />
+                  </View>
                   <AppText type="h2" style={{ color: statusColor }}>
                     {statusText}
                   </AppText>
@@ -128,6 +131,13 @@ export default function ProductDetailScreen() {
             },
           ]}
         />
+
+        {data.suitable === false && reasons.length ? (
+          <SectionCard
+            title="Warum diese Bewertung?"
+            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
+          />
+        ) : null}
 
         <SectionCard
           title="Nährwerte je 100g"
@@ -151,26 +161,6 @@ export default function ProductDetailScreen() {
                     <NutriCell label="Salz" value={fmtOne(data.nutrition.salt, "g")} />
                   </View>
                 </View>
-              ),
-            },
-          ]}
-        />
-
-        {reasons.length ? (
-          <SectionCard
-            title="Warum diese Bewertung?"
-            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
-          />
-        ) : null}
-
-        <SectionCard
-          title="Details"
-          items={[
-            {
-              content: (
-                <AppText type="p3">
-                  {data.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
-                </AppText>
               ),
             },
           ]}

@@ -68,6 +68,7 @@ export default function ManualSearchScreen() {
           title="Manuelle Suche"
           subtitle="Gib den Barcode ein, wenn du nicht scannen kannst."
           icon="search"
+          showAvatar={false}
         />
 
         <SectionCard

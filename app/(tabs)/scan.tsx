@@ -14,7 +14,10 @@ import {
   ScrollView,
   Text,
   View,
+  TouchableOpacity,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { addRecent } from "../../src/history";
 import { fetchProductByBarcode, ProductEval } from "../../src/logic";
@@ -32,6 +35,7 @@ export default function ScanScreen() {
   const router = useRouter();
   // Kamera-Berechtigung
   const [permission, requestPermission] = useCameraPermissions();
+  const insets = useSafeAreaInsets();
 
   // UI-State
   const [busy, setBusy] = useState(false);
@@ -40,6 +44,7 @@ export default function ScanScreen() {
 
   // Kamera steuern
   const [cameraOn, setCameraOn] = useState(true);
+  const [torchOn, setTorchOn] = useState(false);
 
   // Abstand unten, damit die Tab-Bar nichts verdeckt
   const bottomPad = useTabBarPadding(spacing.lg);
@@ -65,12 +70,14 @@ export default function ScanScreen() {
       setScreen("scan");
       setBusy(false);
       setCameraOn(true);
+      setTorchOn(false);
       lockRef.current = false;
 
       return () => {
         setCameraOn(false);
         lockRef.current = false;
         setBusy(false);
+        setTorchOn(false);
       };
     }, [])
   );
@@ -171,6 +178,33 @@ export default function ScanScreen() {
   if (screen === "scan") {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top + spacing.sm,
+            left: spacing.lg,
+            zIndex: 30,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+          }}
+        >
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={torchOn ? "Taschenlampe ausschalten" : "Taschenlampe einschalten"}
+            onPress={() => setTorchOn((prev) => !prev)}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: radius.pill,
+              backgroundColor: torchOn ? colors.primary : "rgba(0,0,0,0.4)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="zap" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
         {renderSettingsButton()}
         {cameraOn && (
           <CameraView
@@ -178,6 +212,7 @@ export default function ScanScreen() {
             barcodeScannerSettings={{
               barcodeTypes: ["ean13", "ean8", "upc_e", "upc_a", "qr"],
             }}
+            enableTorch={torchOn}
             onBarcodeScanned={onScan}
           />
         )}
@@ -198,8 +233,10 @@ export default function ScanScreen() {
   if (!result) return null;
 
   const statusColor = result.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusIcon = result.suitable ? "✅" : "⛔";
   const statusText = result.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = result.suitable ? colors.primary_100 : colors.secondary_100;
+  const statusIcon: React.ComponentProps<typeof Feather>["name"] =
+    result.suitable === false ? "x-circle" : result.suitable === true ? "check-circle" : "help-circle";
   const reasons = Array.isArray(result.reasons) ? result.reasons : [];
 
   return (
@@ -216,22 +253,7 @@ export default function ScanScreen() {
           title={result.productName || "Unbekanntes Produkt"}
           subtitle={result.brand || "Marke unbekannt"}
           icon="package"
-        />
-
-        <SectionCard
-          title="Überblick"
-          items={[
-            {
-              icon: "tag",
-              label: "Kategorie",
-              description: result.categoryPath?.join(" · ") || result.category || "Keine Angabe",
-            },
-            {
-              icon: "clock",
-              label: "Zuletzt gescannt",
-              description: new Date().toLocaleDateString(),
-            },
-          ]}
+          showAvatar={false}
         />
 
         <View
@@ -261,7 +283,18 @@ export default function ScanScreen() {
             {
               content: (
                 <View style={{ alignItems: "center", gap: spacing.sm }}>
-                  <Text style={{ fontSize: 40 }}>{statusIcon}</Text>
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: radius.pill,
+                      backgroundColor: statusBg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Feather name={statusIcon} size={28} color={statusColor} />
+                  </View>
                   <AppText type="h2" style={{ color: statusColor }}>
                     {statusText}
                   </AppText>
@@ -270,6 +303,13 @@ export default function ScanScreen() {
             },
           ]}
         />
+
+        {result.suitable === false && reasons.length ? (
+          <SectionCard
+            title="Warum diese Bewertung?"
+            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
+          />
+        ) : null}
 
         <SectionCard
           title="Nährwerte je 100g"
@@ -293,26 +333,6 @@ export default function ScanScreen() {
                     <NutriCell label="Salz" value={fmtOne(result.nutrition.salt, "g")} />
                   </View>
                 </View>
-              ),
-            },
-          ]}
-        />
-
-        {reasons.length ? (
-          <SectionCard
-            title="Warum diese Bewertung?"
-            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
-          />
-        ) : null}
-
-        <SectionCard
-          title="Details"
-          items={[
-            {
-              content: (
-                <AppText type="p3">
-                  {result.description?.trim() || "Keine Beschreibung verfügbar. Daten stammen von OpenFoodFacts."}
-                </AppText>
               ),
             },
           ]}
