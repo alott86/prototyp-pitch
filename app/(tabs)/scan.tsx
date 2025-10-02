@@ -26,6 +26,7 @@ import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
 import ProfileHeader from "../../src/ui/ProfileHeader";
 import SectionCard from "../../src/ui/SectionCard";
+import SettingsButton from "../../src/ui/SettingsButton";
 import SettingsButtonOverlay from "../../src/ui/SettingsButtonOverlay";
 import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
@@ -239,16 +240,22 @@ export default function ScanScreen() {
     result.suitable === false ? "x-circle" : result.suitable === true ? "check-circle" : "help-circle";
   const reasons = Array.isArray(result.reasons) ? result.reasons : [];
 
+  const topPadding = insets.top + spacing.xs;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: spacing.xl,
+          paddingTop: topPadding,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
       >
+        <View style={{ alignItems: "flex-end" }}>
+          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+        </View>
+
         <ProfileHeader
           title={result.productName || "Unbekanntes Produkt"}
           subtitle={result.brand || "Marke unbekannt"}
@@ -354,29 +361,7 @@ export default function ScanScreen() {
           ]}
         />
 
-        <SectionCard
-          title="Aktionen"
-          items={[
-            {
-              content: (
-                <View style={{ gap: spacing.sm }}>
-                  <AppButton
-                    title="Erneut scannen"
-                    onPress={() => {
-                      setScreen("scan");
-                      setCameraOn(true);
-                    }}
-                  />
-                  <AppButton
-                    title="Details öffnen"
-                    variant="ghost"
-                    onPress={() => router.push(`/product/${encodeURIComponent(result.id ?? "")}`)}
-                  />
-                </View>
-              ),
-            },
-          ]}
-        />
+        {/* Aktionen entfernt auf Wunsch */}
       </ScrollView>
     </View>
   );
