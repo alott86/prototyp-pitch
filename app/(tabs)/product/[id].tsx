@@ -1,7 +1,7 @@
 // app/(tabs)/product/[id].tsx
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,7 +15,7 @@ import { useTabBarPadding } from "../../../src/ui/tabBarInset";
 
 export default function ProductDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const [busy, setBusy] = useState(true);
   const [data, setData] = useState<ProductEval | null>(null);
   const bottomPad = useTabBarPadding(spacing.lg);
@@ -76,8 +76,37 @@ export default function ProductDetailScreen() {
           paddingBottom: bottomPad,
         }}
       >
-        <View style={{ alignItems: "flex-end" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: spacing.sm,
+          }}
+        >
           <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Auswertung schließen"
+            onPress={() => {
+              if (source === "favorites") {
+                router.replace("/(tabs)/favorites");
+                return;
+              }
+              router.back();
+            }}
+            hitSlop={8}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: radius.pill,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="x" size={24} color={colors.text} />
+          </TouchableOpacity>
         </View>
 
         <ProfileHeader
@@ -143,25 +172,7 @@ export default function ProductDetailScreen() {
           title="Nährwerte je 100g"
           items={[
             {
-              content: (
-                <View
-                  style={{
-                    borderRadius: radius.lg,
-                    backgroundColor: "#FFFAF0",
-                    borderWidth: 1,
-                    borderColor: "#FFE0D9",
-                    paddingVertical: spacing.lg,
-                    paddingHorizontal: spacing.lg,
-                  }}
-                >
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <NutriCell label="Kalorien" value={fmt(data.nutrition.kcal, "kcal")} />
-                    <NutriCell label="Fett" value={fmtOne(data.nutrition.fat, "g")} />
-                    <NutriCell label="Zucker" value={fmtOne(data.nutrition.sugars, "g")} />
-                    <NutriCell label="Salz" value={fmtOne(data.nutrition.salt, "g")} />
-                  </View>
-                </View>
-              ),
+              content: <NutritionRow items={buildNutritionItems(data.nutrition)} />,
             },
           ]}
         />
@@ -210,17 +221,88 @@ function getIngredientsTextFromData(x: any): string | null {
     x?.ingredients?.text,
   ];
   const val = candidates.find((v) => typeof v === "string" && v.trim().length > 0);
-  return val ? String(val).trim() : null;
+  return normalizeIngredientsList(val);
 }
 
-/** Nährwert-Zelle (Design: #FFFAF0 / #FF8473) */
-function NutriCell({ label, value }: { label: string; value: string | number }) {
+function normalizeIngredientsList(raw?: string): string | null {
+  if (typeof raw !== "string") return null;
+
+  const unified = raw
+    .replace(/[\r\n]+/g, ",")
+    .replace(/[;•·:]/g, ",")
+    .replace(/[(){}\[\]]/g, " ");
+
+  const parts = unified
+    .split(",")
+    .map((part) =>
+      part
+        .replace(/[^0-9A-Za-zÄÖÜäöüß\s-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
+    .filter(Boolean)
+    .map((part) => {
+      if (!part.length) return "";
+      const head = part.charAt(0).toUpperCase();
+      const tail = part.slice(1);
+      return `${head}${tail}`;
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts.join(", ") : null;
+}
+
+type NutritionTone = "good" | "warn" | "neutral";
+
+type NutritionRowItem = {
+  label: string;
+  value: string;
+  tone: NutritionTone;
+};
+
+function NutritionRow({ items }: { items: NutritionRowItem[] }) {
   return (
-    <View style={{ flex: 1, alignItems: "center" }}>
-      <AppText type="p3" style={{ color: "#FF8473", marginBottom: 4 }}>{label}</AppText>
-      <AppText style={{ fontSize: 18, fontWeight: "600", color: "#FF8473" }}>
-        {String(value)}
-      </AppText>
+    <View style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.sm }}>
+      {items.map((item) => {
+        const color = item.tone === "warn" ? "#FF8473" : "#91C788";
+
+        const label = item.label.charAt(0).toUpperCase() + item.label.slice(1);
+
+        return (
+          <View key={item.label} style={{ flex: 1, alignItems: "center", gap: spacing.xs }}>
+            <AppText type="p3" style={{ color, fontWeight: "600", letterSpacing: 0.2 }}>
+              {label}
+            </AppText>
+            <AppText type="p2" style={{ color }}>
+              {item.value}
+            </AppText>
+          </View>
+        );
+      })}
     </View>
   );
+}
+
+function buildNutritionItems(nutrition: ProductEval["nutrition"]): NutritionRowItem[] {
+  const sugar = nutrition.sugars;
+  const salt = nutrition.salt;
+
+  const sugarTone: NutritionTone =
+    typeof sugar === "number"
+      ? sugar > 15
+        ? "warn"
+        : sugar <= 5
+        ? "good"
+        : "neutral"
+      : "neutral";
+
+  const saltTone: NutritionTone =
+    typeof salt === "number" ? (salt > 1.2 ? "warn" : "good") : "neutral";
+
+  return [
+    { label: "Kalorien", value: fmt(nutrition.kcal, "kcal"), tone: "neutral" },
+    { label: "Fett", value: fmtOne(nutrition.fat, "g"), tone: "neutral" },
+    { label: "Zucker", value: fmtOne(nutrition.sugars, "g"), tone: sugarTone },
+    { label: "Salz", value: fmtOne(nutrition.salt, "g"), tone: saltTone },
+  ];
 }
