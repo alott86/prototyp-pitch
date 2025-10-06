@@ -20,7 +20,13 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { addRecent } from "../../src/history";
-import { fetchProductByBarcode, ProductEval } from "../../src/logic";
+import {
+  AGE_GROUPS,
+  DEFAULT_AGE_GROUP,
+  AgeGroupKey,
+  fetchProductByBarcode,
+  ProductEval,
+} from "../../src/logic";
 import { colors, radius, spacing } from "../../src/theme";
 import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
@@ -41,6 +47,7 @@ export default function ScanScreen() {
   const [busy, setBusy] = useState(false);
   const [screen, setScreen] = useState<Screen>("scan");
   const [result, setResult] = useState<ProductEval | null>(null);
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroupKey>(DEFAULT_AGE_GROUP);
 
   // Kamera steuern
   const [cameraOn, setCameraOn] = useState(true);
@@ -68,6 +75,7 @@ export default function ScanScreen() {
       setCameraOn(true);
       setTorchOn(false);
       lockRef.current = false;
+      setSelectedAgeGroup(DEFAULT_AGE_GROUP);
 
       return () => {
         setCameraOn(false);
@@ -77,6 +85,14 @@ export default function ScanScreen() {
       };
     }, [])
   );
+
+  useEffect(() => {
+    if (result?.defaultAgeGroup) {
+      setSelectedAgeGroup(result.defaultAgeGroup);
+    } else if (!result) {
+      setSelectedAgeGroup(DEFAULT_AGE_GROUP);
+    }
+  }, [result]);
 
   async function onScan(e: BarcodeScanningResult) {
     if (busy || lockRef.current) return;
@@ -237,12 +253,17 @@ export default function ScanScreen() {
   // Ergebnis-Ansicht
   if (!result) return null;
 
-  const statusColor = result.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusText = result.suitable ? "Geeignet" : "Nicht geeignet";
-  const statusBg = result.suitable ? colors.primary_100 : colors.secondary_100;
+  const fallbackEval =
+    result.ageEvaluations[result.defaultAgeGroup] ?? result.ageEvaluations[DEFAULT_AGE_GROUP];
+  const activeEval =
+    result.ageEvaluations[selectedAgeGroup] ?? fallbackEval ?? result.ageEvaluations[DEFAULT_AGE_GROUP];
+
+  const statusColor = activeEval?.suitable ? colors.primary_700 : colors.secondary_700;
+  const statusText = activeEval?.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = activeEval?.suitable ? colors.primary_100 : colors.secondary_100;
   const statusIcon: React.ComponentProps<typeof Feather>["name"] =
-    result.suitable === false ? "x-circle" : result.suitable === true ? "check-circle" : "help-circle";
-  const reasons = Array.isArray(result.reasons) ? result.reasons : [];
+    activeEval?.suitable === false ? "x-circle" : activeEval?.suitable === true ? "check-circle" : "help-circle";
+  const reasons = activeEval?.reasons ?? [];
 
   const topPadding = insets.top + spacing.xs;
 
@@ -318,6 +339,8 @@ export default function ScanScreen() {
           )}
         </View>
 
+        <AgeGroupSegment value={selectedAgeGroup} onChange={setSelectedAgeGroup} />
+
         <SectionCard
           title="Bewertung"
           items={[
@@ -345,7 +368,7 @@ export default function ScanScreen() {
           ]}
         />
 
-        {result.suitable === false && reasons.length ? (
+        {activeEval?.suitable === false && reasons.length ? (
           <SectionCard
             title="Warum diese Bewertung?"
             items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
@@ -384,6 +407,58 @@ export default function ScanScreen() {
 }
 
 /* ===== Helpers & UI ===== */
+
+type AgeGroupSegmentProps = {
+  value: AgeGroupKey;
+  onChange: (next: AgeGroupKey) => void;
+};
+
+function AgeGroupSegment({ value, onChange }: AgeGroupSegmentProps) {
+  const options = Object.entries(AGE_GROUPS) as Array<[AgeGroupKey, { label: string }]>;
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: colors.primary_50,
+        borderRadius: radius.pill,
+        padding: 4,
+        alignSelf: "stretch",
+      }}
+    >
+      {options.map(([key, meta]) => {
+        const isActive = key === value;
+        return (
+          <TouchableOpacity
+            key={key}
+            accessibilityRole="button"
+            accessibilityLabel={`Bewertung für ${meta.label}`}
+            accessibilityState={{ selected: isActive }}
+            onPress={() => onChange(key)}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: radius.pill,
+              backgroundColor: isActive ? colors.primary : "transparent",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AppText
+              type="p3"
+              style={{
+                color: isActive ? "#fff" : colors.textMuted,
+                fontWeight: "600",
+              }}
+            >
+              {meta.label}
+            </AppText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
 
 function fmt(v?: number, unit?: string): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";

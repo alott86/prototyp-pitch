@@ -5,7 +5,13 @@ import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, Vi
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { fetchProductByBarcode, ProductEval } from "../../../src/logic";
+import {
+  AGE_GROUPS,
+  DEFAULT_AGE_GROUP,
+  AgeGroupKey,
+  fetchProductByBarcode,
+  ProductEval,
+} from "../../../src/logic";
 import { colors, radius, spacing } from "../../../src/theme";
 import AppText from "../../../src/ui/AppText";
 import ProfileHeader from "../../../src/ui/ProfileHeader";
@@ -18,6 +24,7 @@ export default function ProductDetailScreen() {
   const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const [busy, setBusy] = useState(true);
   const [data, setData] = useState<ProductEval | null>(null);
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroupKey>(DEFAULT_AGE_GROUP);
   const bottomPad = useTabBarPadding(spacing.lg);
   const insets = useSafeAreaInsets();
   const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
@@ -44,6 +51,14 @@ export default function ProductDetailScreen() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (data?.defaultAgeGroup) {
+      setSelectedAgeGroup(data.defaultAgeGroup);
+    } else if (!data) {
+      setSelectedAgeGroup(DEFAULT_AGE_GROUP);
+    }
+  }, [data]);
+
   if (busy) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -59,12 +74,17 @@ export default function ProductDetailScreen() {
 
   if (!data) return null;
 
-  const statusColor = data.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusText = data.suitable ? "Geeignet" : "Nicht geeignet";
-  const statusBg = data.suitable ? colors.primary_100 : colors.secondary_100;
+  const fallbackEval =
+    data.ageEvaluations[data.defaultAgeGroup] ?? data.ageEvaluations[DEFAULT_AGE_GROUP];
+  const activeEval =
+    data.ageEvaluations[selectedAgeGroup] ?? fallbackEval ?? data.ageEvaluations[DEFAULT_AGE_GROUP];
+
+  const statusColor = activeEval?.suitable ? colors.primary_700 : colors.secondary_700;
+  const statusText = activeEval?.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = activeEval?.suitable ? colors.primary_100 : colors.secondary_100;
   const statusIcon: React.ComponentProps<typeof Feather>["name"] =
-    data.suitable === false ? "x-circle" : data.suitable === true ? "check-circle" : "help-circle";
-  const reasons = Array.isArray(data.reasons) ? data.reasons : [];
+    activeEval?.suitable === false ? "x-circle" : activeEval?.suitable === true ? "check-circle" : "help-circle";
+  const reasons = activeEval?.reasons ?? [];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -134,6 +154,8 @@ export default function ProductDetailScreen() {
           )}
         </View>
 
+        <AgeGroupSegment value={selectedAgeGroup} onChange={setSelectedAgeGroup} />
+
         <SectionCard
           title="Bewertung"
           items={[
@@ -161,7 +183,7 @@ export default function ProductDetailScreen() {
           ]}
         />
 
-        {data.suitable === false && reasons.length ? (
+        {activeEval?.suitable === false && reasons.length ? (
           <SectionCard
             title="Warum diese Bewertung?"
             items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
@@ -199,10 +221,62 @@ export default function ProductDetailScreen() {
 
 /* ---------- Helfer & NutriCell ---------- */
 
+type AgeGroupSegmentProps = {
+  value: AgeGroupKey;
+  onChange: (next: AgeGroupKey) => void;
+};
+
+function AgeGroupSegment({ value, onChange }: AgeGroupSegmentProps) {
+  const options = Object.entries(AGE_GROUPS) as Array<[AgeGroupKey, { label: string }]>;
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: colors.primary_50,
+        borderRadius: radius.pill,
+        padding: 4,
+        alignSelf: "stretch",
+      }}
+    >
+      {options.map(([key, meta]) => {
+        const isActive = key === value;
+        return (
+          <TouchableOpacity
+            key={key}
+            accessibilityRole="button"
+            accessibilityLabel={`Bewertung für ${meta.label}`}
+            accessibilityState={{ selected: isActive }}
+            onPress={() => onChange(key)}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: radius.pill,
+              backgroundColor: isActive ? colors.primary : "transparent",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AppText
+              type="p3"
+              style={{
+                color: isActive ? "#fff" : colors.textMuted,
+                fontWeight: "600",
+              }}
+            >
+              {meta.label}
+            </AppText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function fmt(v?: number, unit?: string) {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";
   const n = Math.round(v);
-  return unit ? `${n} ${unit}` : n;
+  return unit ? `${n} ${unit}` : String(n);
 }
 
 function fmtOne(v?: number, unit?: string) {

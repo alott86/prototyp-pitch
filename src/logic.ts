@@ -7,6 +7,20 @@ export type Nutrition = {
   salt?: number;
 };
 
+export type AgeGroupKey = "infant" | "older";
+
+export type AgeGroupEvaluation = {
+  suitable: boolean;
+  reasons: string[];
+};
+
+export const AGE_GROUPS: Record<AgeGroupKey, { label: string }> = {
+  infant: { label: "6–36 Monate" },
+  older: { label: "> 36 Monate" },
+};
+
+export const DEFAULT_AGE_GROUP: AgeGroupKey = "older";
+
 export type ProductEval = {
   productName?: string | null;
   brand?: string | null;
@@ -14,8 +28,10 @@ export type ProductEval = {
   category?: string | null;
   categoryPath?: string[] | null;
   nutrition: Nutrition;
+  ageEvaluations: Record<AgeGroupKey, AgeGroupEvaluation>;
   suitable: boolean;
   reasons: string[];
+  defaultAgeGroup: AgeGroupKey;
   description?: string | null;
   ingredientsText?: string | null;
   sugarsFound: string[];
@@ -98,27 +114,8 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
     const description: string | null = p.generic_name_de || p.generic_name || null;
     const sugarsFound = extractSugarSynonyms(ingredientsText || "");
 
-    // simple Platzhalter-Regeln – kannst du jederzeit anpassen
-    const reasons: string[] = [];
-    let suitable = true;
-
-    if (isNumber(nutrition.sugars)) {
-      if (nutrition.sugars! <= 5) {
-        reasons.push("Zuckergehalt ≤ 5 g / 100 g");
-      } else if (nutrition.sugars! > 15) {
-        suitable = false;
-        reasons.push("Zuckergehalt > 15 g / 100 g");
-      } else {
-        reasons.push("Moderater Zuckergehalt");
-      }
-    } else {
-      reasons.push("Kein Zuckergehalt angegeben");
-    }
-
-    if (isNumber(nutrition.salt) && nutrition.salt! > 1.2) {
-      suitable = false;
-      reasons.push("Hoher Salzgehalt (> 1,2 g / 100 g)");
-    }
+    const ageEvaluations = buildAgeEvaluations(nutrition);
+    const defaultEval = ageEvaluations[DEFAULT_AGE_GROUP];
 
     const evalObj: ProductEval = {
       productName,
@@ -127,8 +124,10 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
       category,
       categoryPath: catPath,
       nutrition,
-      suitable,
-      reasons,
+      ageEvaluations,
+      suitable: defaultEval.suitable,
+      reasons: [...defaultEval.reasons],
+      defaultAgeGroup: DEFAULT_AGE_GROUP,
       description,
       ingredientsText,
       sugarsFound,
@@ -139,6 +138,58 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
     console.warn("fetchProductByBarcode error:", err);
     return null;
   }
+}
+
+type AgeRules = {
+  sugarGood: number;
+  sugarWarn: number;
+  saltWarn: number;
+};
+
+const AGE_RULES: Record<AgeGroupKey, AgeRules> = {
+  infant: { sugarGood: 5, sugarWarn: 15, saltWarn: 1.2 },
+  older: { sugarGood: 5, sugarWarn: 15, saltWarn: 1.2 },
+};
+
+function buildAgeEvaluations(nutrition: Nutrition): Record<AgeGroupKey, AgeGroupEvaluation> {
+  return {
+    infant: evaluateForAgeGroup("infant", nutrition),
+    older: evaluateForAgeGroup("older", nutrition),
+  };
+}
+
+function evaluateForAgeGroup(group: AgeGroupKey, nutrition: Nutrition): AgeGroupEvaluation {
+  const rules = AGE_RULES[group];
+  const reasons: string[] = [];
+  let suitable = true;
+
+  if (isNumber(nutrition.sugars)) {
+    const sugar = nutrition.sugars as number;
+    if (sugar <= rules.sugarGood) {
+      reasons.push(`Zuckergehalt ≤ ${formatThreshold(rules.sugarGood)} g / 100 g`);
+    } else if (sugar > rules.sugarWarn) {
+      suitable = false;
+      reasons.push(`Zuckergehalt > ${formatThreshold(rules.sugarWarn)} g / 100 g`);
+    } else {
+      reasons.push("Moderater Zuckergehalt");
+    }
+  } else {
+    reasons.push("Kein Zuckergehalt angegeben");
+  }
+
+  if (isNumber(nutrition.salt)) {
+    const salt = nutrition.salt as number;
+    if (salt > rules.saltWarn) {
+      suitable = false;
+      reasons.push(`Hoher Salzgehalt (> ${formatThreshold(rules.saltWarn)} g / 100 g)`);
+    }
+  }
+
+  return { suitable, reasons };
+}
+
+function formatThreshold(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toString().replace(".", ",");
 }
 
 /* ----------------- Helfer ----------------- */
