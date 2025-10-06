@@ -47,7 +47,7 @@ export default function FavoritesScreen() {
           gap: spacing.xl,
         }}
       >
-        <View style={{ alignItems: "flex-end" }}>
+        <View style={{ alignItems: "flex-start" }}>
           <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
         </View>
 
@@ -64,7 +64,12 @@ export default function FavoritesScreen() {
               <FavoriteCard
                 key={item.id}
                 item={item}
-                onOpen={() => router.push(`/product/${encodeURIComponent(item.id)}`)}
+                onOpen={() =>
+                  router.push({
+                    pathname: "/product/[id]",
+                    params: { id: item.id, source: "favorites" },
+                  })
+                }
                 onRemove={async () => {
                   await removeRecent(item.id);
                   load();

@@ -60,7 +60,7 @@ export default function ManualSearchScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ alignItems: "flex-end" }}>
+        <View style={{ alignItems: "flex-start" }}>
           <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
         </View>
 
