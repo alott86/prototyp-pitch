@@ -1,5 +1,15 @@
 // src/logic.ts
 
+import {
+  INFANT_ADDED_SUGAR_TERMS,
+  INFANT_MIN_ENERGY_KCAL_PER_100G,
+  INFANT_MIN_ENERGY_KCAL_PER_100G_CEREAL,
+  INFANT_SODIUM_MAX_MG_PER_100KCAL,
+  INFANT_SODIUM_MAX_MG_PER_100KCAL_CHEESE,
+  INFANT_SUGAR_HIGH_FLAG_PERCENT_ENERGY,
+  containsCheeseHint,
+} from "./nppmInfant";
+
 export type Nutrition = {
   kcal?: number;
   fat?: number;
@@ -114,7 +124,13 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
     const description: string | null = p.generic_name_de || p.generic_name || null;
     const sugarsFound = extractSugarSynonyms(ingredientsText || "");
 
-    const ageEvaluations = buildAgeEvaluations(nutrition);
+    const ageEvaluations = buildAgeEvaluations({
+      nutrition,
+      energyKcalPer100g: nutrition.kcal,
+      sugarsFound,
+      productName,
+      ingredientsText,
+    });
     const defaultEval = ageEvaluations[DEFAULT_AGE_GROUP];
 
     const evalObj: ProductEval = {
@@ -146,30 +162,34 @@ type AgeRules = {
   saltWarn: number;
 };
 
-const AGE_RULES: Record<AgeGroupKey, AgeRules> = {
-  infant: { sugarGood: 5, sugarWarn: 15, saltWarn: 1.2 },
-  older: { sugarGood: 5, sugarWarn: 15, saltWarn: 1.2 },
+const AGE_RULES_OLDER: AgeRules = { sugarGood: 5, sugarWarn: 15, saltWarn: 1.2 };
+
+type EvaluationContext = {
+  nutrition: Nutrition;
+  energyKcalPer100g?: number;
+  sugarsFound: string[];
+  productName?: string | null;
+  ingredientsText?: string | null;
 };
 
-function buildAgeEvaluations(nutrition: Nutrition): Record<AgeGroupKey, AgeGroupEvaluation> {
+function buildAgeEvaluations(ctx: EvaluationContext): Record<AgeGroupKey, AgeGroupEvaluation> {
   return {
-    infant: evaluateForAgeGroup("infant", nutrition),
-    older: evaluateForAgeGroup("older", nutrition),
+    infant: evaluateInfant(ctx),
+    older: evaluateOlder(ctx.nutrition),
   };
 }
 
-function evaluateForAgeGroup(group: AgeGroupKey, nutrition: Nutrition): AgeGroupEvaluation {
-  const rules = AGE_RULES[group];
+function evaluateOlder(nutrition: Nutrition): AgeGroupEvaluation {
   const reasons: string[] = [];
   let suitable = true;
 
   if (isNumber(nutrition.sugars)) {
     const sugar = nutrition.sugars as number;
-    if (sugar <= rules.sugarGood) {
-      reasons.push(`Zuckergehalt ≤ ${formatThreshold(rules.sugarGood)} g / 100 g`);
-    } else if (sugar > rules.sugarWarn) {
+    if (sugar <= AGE_RULES_OLDER.sugarGood) {
+      reasons.push(`Zuckergehalt ≤ ${formatThreshold(AGE_RULES_OLDER.sugarGood)} g / 100 g`);
+    } else if (sugar > AGE_RULES_OLDER.sugarWarn) {
       suitable = false;
-      reasons.push(`Zuckergehalt > ${formatThreshold(rules.sugarWarn)} g / 100 g`);
+      reasons.push(`Zuckergehalt > ${formatThreshold(AGE_RULES_OLDER.sugarWarn)} g / 100 g`);
     } else {
       reasons.push("Moderater Zuckergehalt");
     }
@@ -179,17 +199,97 @@ function evaluateForAgeGroup(group: AgeGroupKey, nutrition: Nutrition): AgeGroup
 
   if (isNumber(nutrition.salt)) {
     const salt = nutrition.salt as number;
-    if (salt > rules.saltWarn) {
+    if (salt > AGE_RULES_OLDER.saltWarn) {
       suitable = false;
-      reasons.push(`Hoher Salzgehalt (> ${formatThreshold(rules.saltWarn)} g / 100 g)`);
+      reasons.push(`Hoher Salzgehalt (> ${formatThreshold(AGE_RULES_OLDER.saltWarn)} g / 100 g)`);
     }
   }
 
   return { suitable, reasons };
 }
 
+function evaluateInfant(ctx: EvaluationContext): AgeGroupEvaluation {
+  const { nutrition, energyKcalPer100g, productName, ingredientsText } = ctx;
+  const failureReasons: string[] = [];
+  let suitable = true;
+
+  if (isNumber(energyKcalPer100g)) {
+    const energy = energyKcalPer100g as number;
+    const minEnergy = isLikelyDryCereal(productName, ingredientsText)
+      ? INFANT_MIN_ENERGY_KCAL_PER_100G_CEREAL
+      : INFANT_MIN_ENERGY_KCAL_PER_100G;
+    if (energy >= minEnergy) {
+      // ausreichend hohe Energiedichte → kein Hinweis nötig
+    } else {
+      suitable = false;
+      failureReasons.push(
+        `Energiedichte < ${formatNumber(minEnergy)} kcal / 100 g (WHO NPPM fordert ausreichende Energie für 6–36 Monate)`
+      );
+    }
+  }
+
+  if (isNumber(nutrition.sugars) && isNumber(energyKcalPer100g) && (energyKcalPer100g as number) > 0) {
+    const sugar = nutrition.sugars as number;
+    const energy = energyKcalPer100g as number;
+    const sugarEnergyPct = (sugar * 4) / energy * 100;
+
+    if (sugarEnergyPct >= INFANT_SUGAR_HIGH_FLAG_PERCENT_ENERGY) {
+      suitable = false;
+      failureReasons.push(
+        `≈ ${formatPercent(sugarEnergyPct)} der Energie stammen aus Zucker (WHO-NPPM fordert High-sugar-Kennzeichnung ab 30 %)`
+      );
+    }
+  }
+
+  if (isNumber(nutrition.salt) && isNumber(energyKcalPer100g) && (energyKcalPer100g as number) > 0) {
+    const energy = energyKcalPer100g as number;
+    const salt = nutrition.salt as number;
+    const sodiumMgPer100g = salt * 0.4 * 1000;
+    const sodiumMgPer100kcal = (sodiumMgPer100g / energy) * 100;
+    const cheese = containsCheeseHint(productName ?? undefined, ingredientsText ?? undefined);
+    const sodiumLimit = cheese
+      ? INFANT_SODIUM_MAX_MG_PER_100KCAL_CHEESE
+      : INFANT_SODIUM_MAX_MG_PER_100KCAL;
+
+    if (sodiumMgPer100kcal > sodiumLimit) {
+      suitable = false;
+      failureReasons.push(
+        `Natrium ≈ ${formatNumber(sodiumMgPer100kcal)} mg / 100 kcal (Grenzwert laut WHO NPPM: ≤ ${formatNumber(sodiumLimit)} mg)`
+      );
+    }
+  }
+
+  if (ingredientsText) {
+    const addedSugarHit = INFANT_ADDED_SUGAR_TERMS.find((term) =>
+      ingredientsText.toLowerCase().includes(term)
+    );
+    if (addedSugarHit) {
+      suitable = false;
+      failureReasons.push(
+        `Zutatenliste enthält '${cap(addedSugarHit)}' → WHO NPPM untersagt zugesetzte freie Zucker bei 6–36 Monaten`
+      );
+    }
+  }
+
+  return { suitable, reasons: failureReasons };
+}
+
 function formatThreshold(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toString().replace(".", ",");
+}
+
+function formatNumber(value: number, digits = 1): string {
+  const scaled = Number.parseFloat(value.toFixed(digits));
+  return scaled.toString().replace(".", ",");
+}
+
+function formatPercent(value: number, digits = 0): string {
+  return `${formatNumber(value, digits)} %`;
+}
+
+function isLikelyDryCereal(name?: string | null, ingredients?: string | null): boolean {
+  const text = `${name ?? ""} ${ingredients ?? ""}`.toLowerCase();
+  return /cereal|porridge|gr(i|ie)s|getreide|m(ü|u)sli|hafer|oat|baby rice|milchbrei|instantbrei|pasta/.test(text);
 }
 
 /* ----------------- Helfer ----------------- */
