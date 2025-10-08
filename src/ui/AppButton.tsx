@@ -28,7 +28,7 @@ export default function AppButton({
   const borderColor =
     variant === "ghost" ? colors.border :
     variant === "secondary" ? colors.secondary_700 :
-    colors.primary_800;
+    colors.primary_700;
 
   return (
     <Pressable

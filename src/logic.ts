@@ -124,32 +124,17 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
     const description: string | null = p.generic_name_de || p.generic_name || null;
     const sugarsFound = extractSugarSynonyms(ingredientsText || "");
 
-    const ageEvaluations = buildAgeEvaluations({
+    return evaluateManualProduct({
+      productName: productName ?? undefined,
+      brand: brand ?? undefined,
+      imageUrl: imageUrl ?? undefined,
+      category: category ?? undefined,
+      categoryPath: catPath ?? undefined,
       nutrition,
-      energyKcalPer100g: nutrition.kcal,
+      description: description ?? undefined,
+      ingredientsText: ingredientsText ?? undefined,
       sugarsFound,
-      productName,
-      ingredientsText,
     });
-    const defaultEval = ageEvaluations[DEFAULT_AGE_GROUP];
-
-    const evalObj: ProductEval = {
-      productName,
-      brand,
-      imageUrl,
-      category,
-      categoryPath: catPath,
-      nutrition,
-      ageEvaluations,
-      suitable: defaultEval.suitable,
-      reasons: [...defaultEval.reasons],
-      defaultAgeGroup: DEFAULT_AGE_GROUP,
-      description,
-      ingredientsText,
-      sugarsFound,
-    };
-
-    return evalObj;
   } catch (err) {
     console.warn("fetchProductByBarcode error:", err);
     return null;
@@ -274,6 +259,59 @@ function evaluateInfant(ctx: EvaluationContext): AgeGroupEvaluation {
   return { suitable, reasons: failureReasons };
 }
 
+type ManualProductInput = {
+  productName?: string;
+  brand?: string;
+  category?: string;
+  categoryPath?: string[];
+  imageUrl?: string;
+  nutrition: Nutrition;
+  description?: string;
+  ingredientsText?: string;
+  sugarsFound?: string[];
+};
+
+export function evaluateManualProduct(input: ManualProductInput): ProductEval {
+  const {
+    productName,
+    brand,
+    category,
+    categoryPath,
+    imageUrl,
+    nutrition,
+    description,
+    ingredientsText,
+  } = input;
+
+  const sugarsFound = input.sugarsFound ?? extractSugarSynonyms(ingredientsText ?? "");
+
+  const ageEvaluations = buildAgeEvaluations({
+    nutrition,
+    energyKcalPer100g: nutrition.kcal,
+    sugarsFound,
+    productName,
+    ingredientsText,
+  });
+
+  const defaultEval = ageEvaluations[DEFAULT_AGE_GROUP];
+
+  return {
+    productName: productName ?? null,
+    brand: brand ?? null,
+    imageUrl: imageUrl ?? null,
+    category: category ?? null,
+    categoryPath: categoryPath ?? null,
+    nutrition,
+    ageEvaluations,
+    suitable: defaultEval.suitable,
+    reasons: [...defaultEval.reasons],
+    defaultAgeGroup: DEFAULT_AGE_GROUP,
+    description: description ?? null,
+    ingredientsText: ingredientsText ?? null,
+    sugarsFound,
+  };
+}
+
 function formatThreshold(value: number): string {
   return Number.isInteger(value) ? `${value}` : value.toString().replace(".", ",");
 }
@@ -300,7 +338,7 @@ function num(v: any): number | undefined {
 function isNumber(v: any): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
-function extractSugarSynonyms(text: string): string[] {
+export function extractSugarSynonyms(text: string): string[] {
   if (!text) return [];
   const lowered = text.toLowerCase();
   const terms = [
