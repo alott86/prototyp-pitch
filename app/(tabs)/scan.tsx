@@ -17,7 +17,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { addRecent } from "../../src/history";
 import {
@@ -35,13 +34,18 @@ import SectionCard from "../../src/ui/SectionCard";
 import SettingsButton from "../../src/ui/SettingsButton";
 import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
+const NUMUM_LOGO = require("../../assets/images/NuMum_Logo Kopie.png");
+const LOGO_SIZE = 120;
+const LOGO_TOP_MARGIN = spacing.lg;
+const BUTTON_TOP_MARGIN = LOGO_TOP_MARGIN + spacing.xs;
+const BUTTON_TOP_ADJUST = BUTTON_TOP_MARGIN - LOGO_TOP_MARGIN;
+
 type Screen = "scan" | "result";
 
 export default function ScanScreen() {
   const router = useRouter();
   // Kamera-Berechtigung
   const [permission, requestPermission] = useCameraPermissions();
-  const insets = useSafeAreaInsets();
 
   // UI-State
   const [busy, setBusy] = useState(false);
@@ -173,13 +177,15 @@ export default function ScanScreen() {
     <View
       style={{
         position: "absolute",
-        top: insets.top + spacing.xs,
-        left: spacing.lg,
-        right: spacing.lg,
+        top: 0,
+        left: 0,
+        right: 0,
         zIndex: 30,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        paddingTop: BUTTON_TOP_MARGIN,
+        paddingHorizontal: spacing.lg,
       }}
     >
       <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
@@ -227,6 +233,24 @@ export default function ScanScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         {topControls(true)}
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            alignItems: "center",
+            zIndex: 25,
+            paddingTop: LOGO_TOP_MARGIN,
+          }}
+        >
+          <Image
+            source={NUMUM_LOGO}
+            style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+            resizeMode="contain"
+          />
+        </View>
         {cameraOn && (
           <CameraView
             style={{ flex: 1 }}
@@ -265,50 +289,60 @@ export default function ScanScreen() {
     activeEval?.suitable === false ? "x-circle" : activeEval?.suitable === true ? "check-circle" : "help-circle";
   const reasons = activeEval?.reasons ?? [];
 
-  const topPadding = insets.top + spacing.xs;
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: topPadding,
+          paddingTop: 0,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
+        contentInsetAdjustmentBehavior="never"
       >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: spacing.sm,
-          }}
-        >
-          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Auswertung schließen"
-            onPress={() => {
-              setResult(null);
-              setScreen("scan");
-              setCameraOn(true);
-              setTorchOn(false);
-              setBusy(false);
-              lockRef.current = false;
-            }}
-            hitSlop={8}
+        <View style={{ gap: spacing.xs, paddingTop: LOGO_TOP_MARGIN }}>
+          <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.pill,
+              flexDirection: "row",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: BUTTON_TOP_ADJUST,
             }}
           >
-            <Feather name="x" size={24} color={colors.text} />
-          </TouchableOpacity>
+            <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Auswertung schließen"
+              onPress={() => {
+                setResult(null);
+                setScreen("scan");
+                setCameraOn(true);
+                setTorchOn(false);
+                setBusy(false);
+                lockRef.current = false;
+              }}
+              hitSlop={8}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: radius.pill,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather name="x" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View pointerEvents="none" style={{ alignItems: "center" }}>
+            <Image
+              source={NUMUM_LOGO}
+              style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
         <ProfileHeader

@@ -3,7 +3,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Image, ScrollView, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getRecents, RecentItem, removeRecent, setFavorite } from "../../src/history";
 import { colors, radius, spacing } from "../../src/theme";
@@ -13,12 +12,16 @@ import ProfileHeader from "../../src/ui/ProfileHeader";
 import SettingsButton from "../../src/ui/SettingsButton";
 import { useTabBarPadding } from "../../src/ui/tabBarInset";
 
+const NUMUM_LOGO = require("../../assets/images/NuMum_Logo Kopie.png");
+const LOGO_SIZE = 120;
+const LOGO_TOP_MARGIN = spacing.lg;
+const BUTTON_TOP_MARGIN = LOGO_TOP_MARGIN + spacing.xs;
+
 export default function FavoritesScreen() {
   const router = useRouter();
   const [items, setItems] = useState<RecentItem[]>([]);
   const bottomPad = useTabBarPadding(spacing.lg);
-  const insets = useSafeAreaInsets();
-  const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
+  const headerOffset = LOGO_SIZE + LOGO_TOP_MARGIN + spacing.sm;
 
   const load = useCallback(async () => {
     const list = await getRecents();
@@ -39,18 +42,49 @@ export default function FavoritesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 30,
+          paddingTop: BUTTON_TOP_MARGIN,
+          paddingHorizontal: spacing.lg,
+        }}
+      >
+        <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+      </View>
+
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          paddingTop: LOGO_TOP_MARGIN,
+          alignItems: "center",
+          zIndex: 20,
+        }}
+      >
+        <Image
+          source={NUMUM_LOGO}
+          style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+          resizeMode="contain"
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: topPadding,
+          paddingTop: headerOffset,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
+        contentInsetAdjustmentBehavior="never"
       >
-        <View style={{ alignItems: "flex-start" }}>
-          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
-        </View>
-
         <ProfileHeader
           title="Verlauf"
           subtitle="Deine letzten Scans, schnell wiederfinden."

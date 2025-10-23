@@ -1,9 +1,8 @@
 // app/(tabs)/search.tsx
 import { useRouter } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { addRecent } from "../../src/history";
 import { AGE_GROUPS, evaluateManualProduct, fetchProductByBarcode, type ProductEval } from "../../src/logic";
 import { colors, radius, spacing, typography } from "../../src/theme";
@@ -14,6 +13,11 @@ import SectionCard from "../../src/ui/SectionCard";
 import SettingsButton from "../../src/ui/SettingsButton";
 import { useTabBarPadding } from "../../src/ui/tabBarInset";
 import { MANUAL_CATALOG, type ManualCategory, type ManualProduct } from "../../src/manualCatalog";
+
+const NUMUM_LOGO = require("../../assets/images/NuMum_Logo Kopie.png");
+const LOGO_SIZE = 120;
+const LOGO_TOP_MARGIN = spacing.lg;
+const BUTTON_TOP_MARGIN = LOGO_TOP_MARGIN + spacing.xs;
 
 type BreadcrumbItem = {
   label: string;
@@ -29,9 +33,7 @@ export default function ManualSearchScreen() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const bottomPad = useTabBarPadding(spacing.lg);
   const inputRef = useRef<TextInput>(null);
-  const insets = useSafeAreaInsets();
-
-  const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
+  const headerOffset = LOGO_SIZE + LOGO_TOP_MARGIN + spacing.sm;
 
   const currentCategory = categoryPath[categoryPath.length - 1] ?? null;
   const currentCategories = currentCategory
@@ -121,19 +123,50 @@ export default function ManualSearchScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 30,
+          paddingTop: BUTTON_TOP_MARGIN,
+          paddingHorizontal: spacing.lg,
+        }}
+      >
+        <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+      </View>
+
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          paddingTop: LOGO_TOP_MARGIN,
+          alignItems: "center",
+          zIndex: 20,
+        }}
+      >
+        <Image
+          source={NUMUM_LOGO}
+          style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+          resizeMode="contain"
+        />
+      </View>
+
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: topPadding,
+          paddingTop: headerOffset,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="never"
       >
-        <View style={{ alignItems: "flex-start" }}>
-          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
-        </View>
-
         <ProfileHeader
           title="Manuelle Suche"
           subtitle="Gib den Barcode ein oder wähle eine Kategorie."
