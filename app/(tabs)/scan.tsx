@@ -188,7 +188,6 @@ export default function ScanScreen() {
         paddingHorizontal: spacing.lg,
       }}
     >
-      <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
       {withTorch ? (
         <TouchableOpacity
           accessibilityRole="button"
@@ -208,6 +207,7 @@ export default function ScanScreen() {
       ) : (
         <View style={{ width: 40, height: 40 }} />
       )}
+      <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
     </View>
   );
 
@@ -310,8 +310,6 @@ export default function ScanScreen() {
               marginTop: BUTTON_TOP_ADJUST,
             }}
           >
-            <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
-
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="Auswertung schließen"
@@ -334,6 +332,7 @@ export default function ScanScreen() {
             >
               <Feather name="x" size={24} color={colors.text} />
             </TouchableOpacity>
+            <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
           </View>
 
           <View pointerEvents="none" style={{ alignItems: "center" }}>

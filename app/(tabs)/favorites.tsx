@@ -21,7 +21,6 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const [items, setItems] = useState<RecentItem[]>([]);
   const bottomPad = useTabBarPadding(spacing.lg);
-  const headerOffset = LOGO_SIZE + LOGO_TOP_MARGIN + spacing.sm;
 
   const load = useCallback(async () => {
     const list = await getRecents();
@@ -42,49 +41,41 @@ export default function FavoritesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View
-        pointerEvents="box-none"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 30,
-          paddingTop: BUTTON_TOP_MARGIN,
-          paddingHorizontal: spacing.lg,
-        }}
-      >
-        <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
-      </View>
-
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          paddingTop: LOGO_TOP_MARGIN,
-          alignItems: "center",
-          zIndex: 20,
-        }}
-      >
-        <Image
-          source={NUMUM_LOGO}
-          style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
-          resizeMode="contain"
-        />
-      </View>
-
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,
-          paddingTop: headerOffset,
+          paddingTop: 0,
           paddingBottom: bottomPad,
           gap: spacing.xl,
         }}
         contentInsetAdjustmentBehavior="never"
       >
+        <View style={{ paddingTop: LOGO_TOP_MARGIN, marginBottom: spacing.sm }}>
+          <View pointerEvents="none" style={{ alignItems: "center" }}>
+            <Image
+              source={NUMUM_LOGO}
+              style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+              resizeMode="contain"
+            />
+          </View>
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              top: BUTTON_TOP_MARGIN,
+              left: spacing.lg,
+              right: spacing.lg,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <View style={{ width: 40, height: 40 }} />
+            <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+          </View>
+        </View>
+
         <ProfileHeader
           title="Verlauf"
           subtitle="Deine letzten Scans, schnell wiederfinden."
