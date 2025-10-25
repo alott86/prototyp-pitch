@@ -1,22 +1,16 @@
 // app/(tabs)/product/[id].tsx
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  AGE_GROUPS,
-  DEFAULT_AGE_GROUP,
-  AgeGroupKey,
-  fetchProductByBarcode,
-  ProductEval,
-} from "../../../src/logic";
+import { fetchProductByBarcode, ProductEval } from "../../../src/logic";
 import { colors, radius, spacing } from "../../../src/theme";
 import AppText from "../../../src/ui/AppText";
 import ProfileHeader from "../../../src/ui/ProfileHeader";
 import SectionCard from "../../../src/ui/SectionCard";
-import SettingsButton from "../../../src/ui/SettingsButton";
+// SettingsButton entfällt im Overlay-Design
 import { useTabBarPadding } from "../../../src/ui/tabBarInset";
 
 export default function ProductDetailScreen() {
@@ -24,10 +18,12 @@ export default function ProductDetailScreen() {
   const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const [busy, setBusy] = useState(true);
   const [data, setData] = useState<ProductEval | null>(null);
-  const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroupKey>(DEFAULT_AGE_GROUP);
   const bottomPad = useTabBarPadding(spacing.lg);
   const insets = useSafeAreaInsets();
-  const topPadding = Math.max(insets.top + spacing.xs, spacing.md);
+  const { height } = useWindowDimensions();
+  const overlayTop = Math.max(insets.top + spacing.md, spacing.lg);
+  const overlayMinHeight = 480;
+  const LOGO_TOP_MARGIN = spacing.lg;
 
   useEffect(() => {
     let alive = true;
@@ -51,14 +47,6 @@ export default function ProductDetailScreen() {
     };
   }, [id]);
 
-  useEffect(() => {
-    if (data?.defaultAgeGroup) {
-      setSelectedAgeGroup(data.defaultAgeGroup);
-    } else if (!data) {
-      setSelectedAgeGroup(DEFAULT_AGE_GROUP);
-    }
-  }, [data]);
-
   if (busy) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -74,201 +62,120 @@ export default function ProductDetailScreen() {
 
   if (!data) return null;
 
-  const fallbackEval =
-    data.ageEvaluations[data.defaultAgeGroup] ?? data.ageEvaluations[DEFAULT_AGE_GROUP];
-  const activeEval =
-    data.ageEvaluations[selectedAgeGroup] ?? fallbackEval ?? data.ageEvaluations[DEFAULT_AGE_GROUP];
-
-  const statusColor = activeEval?.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusText = activeEval?.suitable ? "Geeignet" : "Nicht geeignet";
-  const statusBg = activeEval?.suitable ? colors.primary_100 : colors.secondary_100;
-  const statusIcon: React.ComponentProps<typeof Feather>["name"] =
-    activeEval?.suitable === false ? "x-circle" : activeEval?.suitable === true ? "check-circle" : "help-circle";
-  const reasons = activeEval?.reasons ?? [];
+  const statusColor = data.suitable ? colors.primary_700 : colors.secondary_700;
+  const statusText = data.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = data.suitable ? colors.primary_100 : colors.secondary_100;
+  const statusIcon: React.ComponentProps<typeof Feather>["name"] = data.suitable ? "check-circle" : "x-circle";
+  const reasons = data.reasons ?? [];
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: topPadding,
-          gap: spacing.xl,
-          paddingBottom: bottomPad,
+      {/* Dezenter Bild-Hintergrund im oberen Bereich für konsistente Optik */}
+      {data.imageUrl ? (
+        <Image
+          source={{ uri: data.imageUrl }}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 220, resizeMode: "cover", opacity: 0.8 }}
+        />
+      ) : (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: colors.primary_50 }} />
+      )}
+
+      {/* Overlay-Karte wie im Scan-Ergebnis */}
+      <View
+        style={{
+          position: "absolute",
+          left: spacing.lg,
+          right: spacing.lg,
+          top: overlayTop,
+          height: Math.max(overlayMinHeight, height - overlayTop - bottomPad),
+          borderRadius: radius.xl,
+          backgroundColor: colors.bg,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOpacity: 0.2,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 10 },
+          elevation: 8,
         }}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: spacing.sm,
+        {/* Schließen rechts oben */}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Auswertung schließen"
+          onPress={() => {
+            if (source === "favorites") {
+              router.replace("/(tabs)/favorites");
+              return;
+            }
+            router.back();
           }}
+          hitSlop={8}
+          style={{ position: "absolute", top: spacing.md, right: spacing.md, width: 36, height: 36, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", zIndex: 10 }}
         >
-          <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
+          <Feather name="x" size={24} color={colors.text} />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Auswertung schließen"
-            onPress={() => {
-              if (source === "favorites") {
-                router.replace("/(tabs)/favorites");
-                return;
-              }
-              router.back();
-            }}
-            hitSlop={8}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.pill,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Feather name="x" size={24} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        <ProfileHeader
-          title={data.productName || "Unbekanntes Produkt"}
-          subtitle={data.brand || "Marke unbekannt"}
-          icon="package"
-          showAvatar={false}
-        />
-
-        <View
-          style={{
-            backgroundColor: colors.primary_50,
-            borderRadius: radius.lg,
-            borderWidth: 1,
-            borderColor: colors.border,
-            overflow: "hidden",
-          }}
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: LOGO_TOP_MARGIN, gap: spacing.xl, paddingBottom: spacing.lg }}
+          contentInsetAdjustmentBehavior="never"
         >
-          {data.imageUrl ? (
-            <Image source={{ uri: data.imageUrl }} style={{ width: "100%", height: 220, resizeMode: "cover" }} />
-          ) : (
-            <View style={{ padding: spacing.xl, alignItems: "center" }}>
-              <AppText type="p3" muted>Kein Bild verfügbar</AppText>
-            </View>
-          )}
-        </View>
+          <View pointerEvents="none" style={{ alignItems: "center" }}>
+            <Image source={require("../../../assets/images/NuMum_Logo Kopie.png")} style={{ width: 120, height: 120 }} resizeMode="contain" />
+          </View>
 
-        <AgeGroupSegment value={selectedAgeGroup} onChange={setSelectedAgeGroup} />
+          <ProfileHeader title={data.productName || "Unbekanntes Produkt"} subtitle={data.brand || "Marke unbekannt"} icon="package" showAvatar={false} />
 
-        <SectionCard
-          title="Bewertung"
-          items={[
-            {
-              content: (
-                <View style={{ alignItems: "center", gap: spacing.sm }}>
-                  <View
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: radius.pill,
-                      backgroundColor: statusBg,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Feather name={statusIcon} size={28} color={statusColor} />
-                  </View>
-                  <AppText type="h2" style={{ color: statusColor }}>
-                    {statusText}
-                  </AppText>
-                </View>
-              ),
-            },
-          ]}
-        />
+          <View style={{ backgroundColor: colors.primary_50, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+            {data.imageUrl ? (
+              <Image source={{ uri: data.imageUrl }} style={{ width: "100%", height: 220, resizeMode: "cover" }} />
+            ) : (
+              <View style={{ padding: spacing.xl, alignItems: "center" }}>
+                <AppText type="p3" muted>Kein Bild verfügbar</AppText>
+              </View>
+            )}
+          </View>
 
-        {activeEval?.suitable === false && reasons.length ? (
           <SectionCard
-            title="Warum diese Bewertung?"
-            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
+            title="Bewertung"
+            items={[
+              {
+                content: (
+                  <View style={{ alignItems: "center", gap: spacing.sm }}>
+                    <View style={{ width: 56, height: 56, borderRadius: radius.pill, backgroundColor: statusBg, alignItems: "center", justifyContent: "center" }}>
+                      <Feather name={statusIcon} size={28} color={statusColor} />
+                    </View>
+                    <AppText type="h2" style={{ color: statusColor }}>
+                      {statusText}
+                    </AppText>
+                  </View>
+                ),
+              },
+            ]}
           />
-        ) : null}
 
-        <SectionCard
-          title="Nährwerte je 100g"
-          items={[
-            {
-              content: <NutritionRow items={buildNutritionItems(data.nutrition)} />,
-            },
-          ]}
-        />
+          {!data.suitable && reasons.length ? (
+            <SectionCard title="Warum diese Bewertung?" items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))} />
+          ) : null}
 
-        <SectionCard
-          title="Zutaten"
-          items={[
-            {
-              content: (
-                <AppText type="p3">
-                  {(() => {
-                    const ing = getIngredientsTextFromData(data);
-                    return ing || "Keine Zutatenliste verfügbar.";
-                  })()}
-                </AppText>
-              ),
-            },
-          ]}
-        />
-      </ScrollView>
-    </View>
-  );
-}
+          <SectionCard title="Nährwerte je 100g" items={[{ content: <NutritionRow items={buildNutritionItems(data.nutrition)} /> }]} />
 
-/* ---------- Helfer & NutriCell ---------- */
-
-type AgeGroupSegmentProps = {
-  value: AgeGroupKey;
-  onChange: (next: AgeGroupKey) => void;
-};
-
-function AgeGroupSegment({ value, onChange }: AgeGroupSegmentProps) {
-  const options = Object.entries(AGE_GROUPS) as Array<[AgeGroupKey, { label: string }]>;
-
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        backgroundColor: colors.primary_50,
-        borderRadius: radius.pill,
-        padding: 4,
-        alignSelf: "stretch",
-      }}
-    >
-      {options.map(([key, meta]) => {
-        const isActive = key === value;
-        return (
-          <TouchableOpacity
-            key={key}
-            accessibilityRole="button"
-            accessibilityLabel={`Bewertung für ${meta.label}`}
-            accessibilityState={{ selected: isActive }}
-            onPress={() => onChange(key)}
-            style={{
-              flex: 1,
-              paddingVertical: 10,
-              borderRadius: radius.pill,
-              backgroundColor: isActive ? colors.primary : "transparent",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <AppText
-              type="p3"
-              style={{
-                color: isActive ? "#fff" : colors.textMuted,
-                fontWeight: "600",
-              }}
-            >
-              {meta.label}
-            </AppText>
-          </TouchableOpacity>
-        );
-      })}
+          <SectionCard
+            title="Zutaten"
+            items={[
+              {
+                content: (
+                  <AppText type="p3">
+                    {(() => {
+                      const ing = getIngredientsTextFromData(data);
+                      return ing || "Keine Zutatenliste verfügbar.";
+                    })()}
+                  </AppText>
+                ),
+              },
+            ]}
+          />
+        </ScrollView>
+      </View>
     </View>
   );
 }

@@ -7,25 +7,12 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  Text,
-  View,
-  TouchableOpacity,
-} from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, View, TouchableOpacity, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
 import { addRecent } from "../../src/history";
-import {
-  AGE_GROUPS,
-  DEFAULT_AGE_GROUP,
-  AgeGroupKey,
-  fetchProductByBarcode,
-  ProductEval,
-} from "../../src/logic";
+import { fetchProductByBarcode, ProductEval } from "../../src/logic";
 import { colors, radius, spacing } from "../../src/theme";
 import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
@@ -44,6 +31,8 @@ type Screen = "scan" | "result";
 
 export default function ScanScreen() {
   const router = useRouter();
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   // Kamera-Berechtigung
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -51,8 +40,6 @@ export default function ScanScreen() {
   const [busy, setBusy] = useState(false);
   const [screen, setScreen] = useState<Screen>("scan");
   const [result, setResult] = useState<ProductEval | null>(null);
-  const [selectedAgeGroup, setSelectedAgeGroup] = useState<AgeGroupKey>(DEFAULT_AGE_GROUP);
-
   // Kamera steuern
   const [cameraOn, setCameraOn] = useState(true);
   const [torchOn, setTorchOn] = useState(false);
@@ -79,7 +66,6 @@ export default function ScanScreen() {
       setCameraOn(true);
       setTorchOn(false);
       lockRef.current = false;
-      setSelectedAgeGroup(DEFAULT_AGE_GROUP);
 
       return () => {
         setCameraOn(false);
@@ -89,14 +75,6 @@ export default function ScanScreen() {
       };
     }, [])
   );
-
-  useEffect(() => {
-    if (result?.defaultAgeGroup) {
-      setSelectedAgeGroup(result.defaultAgeGroup);
-    } else if (!result) {
-      setSelectedAgeGroup(DEFAULT_AGE_GROUP);
-    }
-  }, [result]);
 
   async function onScan(e: BarcodeScanningResult) {
     if (busy || lockRef.current) return;
@@ -112,7 +90,7 @@ export default function ScanScreen() {
 
     lockRef.current = true;
     setBusy(true);
-    setCameraOn(false); // Kamera sofort stoppen
+    // Kamera weiter anzeigen, aber Ergebnis als Overlay zeigen
 
     try {
       const r = (await fetchProductByBarcode(code)) as any;
@@ -274,224 +252,180 @@ export default function ScanScreen() {
     );
   }
 
-  // Ergebnis-Ansicht
-  if (!result) return null;
+  // Ergebnis-Ansicht (als Overlay über der Kamera)
+  if (!result) {
+    return null;
+  }
 
-  const fallbackEval =
-    result.ageEvaluations[result.defaultAgeGroup] ?? result.ageEvaluations[DEFAULT_AGE_GROUP];
-  const activeEval =
-    result.ageEvaluations[selectedAgeGroup] ?? fallbackEval ?? result.ageEvaluations[DEFAULT_AGE_GROUP];
+  const statusColor = result.suitable ? colors.primary_700 : colors.secondary_700;
+  const statusText = result.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = result.suitable ? colors.primary_100 : colors.secondary_100;
+  const statusIcon: React.ComponentProps<typeof Feather>["name"] = result.suitable ? "check-circle" : "x-circle";
+  const reasons = result.reasons ?? [];
 
-  const statusColor = activeEval?.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusText = activeEval?.suitable ? "Geeignet" : "Nicht geeignet";
-  const statusBg = activeEval?.suitable ? colors.primary_100 : colors.secondary_100;
-  const statusIcon: React.ComponentProps<typeof Feather>["name"] =
-    activeEval?.suitable === false ? "x-circle" : activeEval?.suitable === true ? "check-circle" : "help-circle";
-  const reasons = activeEval?.reasons ?? [];
+  // Mindestgröße, damit die Eignung immer sichtbar werden kann
+  const overlayTop = Math.max(insets.top + spacing.md, spacing.lg);
+  const available = Math.max(0, height - overlayTop - bottomPad);
+  const overlayMinHeight = 480; // genug Platz für Logo + Header + Bewertung
+  const overlayHeight = Math.max(overlayMinHeight, available);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: 0,
-          paddingBottom: bottomPad,
-          gap: spacing.xl,
+      {/* Kamera im Hintergrund sichtbar lassen, aber ohne Scan-Callback */}
+      {permission?.granted ? (
+        <CameraView style={{ flex: 1 }} enableTorch={false} />
+      ) : (
+        <View style={{ flex: 1, backgroundColor: "#000" }} />
+      )}
+
+      {/* Overlay-Card über dem Scanner */}
+      <View
+        style={{
+          position: "absolute",
+          left: spacing.lg,
+          right: spacing.lg,
+          top: overlayTop,
+          height: overlayHeight,
+          borderRadius: radius.xl,
+          backgroundColor: colors.bg,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOpacity: 0.2,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 10 },
+          elevation: 8,
         }}
-        contentInsetAdjustmentBehavior="never"
       >
-        <View style={{ gap: spacing.xs, paddingTop: LOGO_TOP_MARGIN }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-              marginTop: BUTTON_TOP_ADJUST,
-            }}
-          >
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Auswertung schließen"
-              onPress={() => {
-                setResult(null);
-                setScreen("scan");
-                setCameraOn(true);
-                setTorchOn(false);
-                setBusy(false);
-                lockRef.current = false;
-              }}
-              hitSlop={8}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: radius.pill,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Feather name="x" size={24} color={colors.text} />
-            </TouchableOpacity>
-            <SettingsButton onPress={() => router.push("/(tabs)/profile")} />
-          </View>
-
-          <View pointerEvents="none" style={{ alignItems: "center" }}>
-            <Image
-              source={NUMUM_LOGO}
-              style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
-
-        <ProfileHeader
-          title={result.productName || "Unbekanntes Produkt"}
-          subtitle={result.brand || "Marke unbekannt"}
-          icon="package"
-          showAvatar={false}
-        />
-
-        <View
+        {/* Close button (kein Einstellungs-Button auf dem Overlay) */}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Auswertung schließen"
+          onPress={() => {
+            setResult(null);
+            setScreen("scan");
+            setCameraOn(true);
+            setTorchOn(false);
+            setBusy(false);
+            lockRef.current = false;
+          }}
+          hitSlop={8}
           style={{
-            backgroundColor: colors.primary_50,
-            borderRadius: radius.lg,
-            borderWidth: 1,
-            borderColor: colors.border,
-            overflow: "hidden",
+            position: "absolute",
+            top: spacing.md,
+            right: spacing.md,
+            zIndex: 10,
+            width: 36,
+            height: 36,
+            borderRadius: radius.pill,
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          {result.imageUrl ? (
-            <Image
-              source={{ uri: result.imageUrl }}
-              style={{ width: "100%", height: 220, resizeMode: "cover" }}
-            />
-          ) : (
-            <View style={{ padding: spacing.xl, alignItems: "center" }}>
-              <AppText type="p3" muted>Kein Bild verfügbar</AppText>
-            </View>
-          )}
-        </View>
+          <Feather name="x" size={24} color={colors.text} />
+        </TouchableOpacity>
 
-        <AgeGroupSegment value={selectedAgeGroup} onChange={setSelectedAgeGroup} />
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: LOGO_TOP_MARGIN,
+            paddingBottom: spacing.lg,
+            gap: spacing.xl,
+          }}
+          contentInsetAdjustmentBehavior="never"
+        >
+          <View pointerEvents="none" style={{ alignItems: "center" }}>
+            <Image source={NUMUM_LOGO} style={{ width: LOGO_SIZE, height: LOGO_SIZE }} resizeMode="contain" />
+          </View>
 
-        <SectionCard
-          title="Bewertung"
-          items={[
-            {
-              content: (
-                <View style={{ alignItems: "center", gap: spacing.sm }}>
-                  <View
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: radius.pill,
-                      backgroundColor: statusBg,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Feather name={statusIcon} size={28} color={statusColor} />
-                  </View>
-                  <AppText type="h2" style={{ color: statusColor }}>
-                    {statusText}
-                  </AppText>
-                </View>
-              ),
-            },
-          ]}
-        />
-
-        {activeEval?.suitable === false && reasons.length ? (
-          <SectionCard
-            title="Warum diese Bewertung?"
-            items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
+          <ProfileHeader
+            title={result.productName || "Unbekanntes Produkt"}
+            subtitle={result.brand || "Marke unbekannt"}
+            icon="package"
+            showAvatar={false}
           />
-        ) : null}
 
-        <SectionCard
-          title="Nährwerte je 100g"
-          items={[
-            {
-              content: <NutritionRow items={buildNutritionItems(result.nutrition)} />,
-            },
-          ]}
-        />
-
-        <SectionCard
-          title="Zutaten"
-          items={[
-            {
-              content: (
-                <AppText type="p3">
-                  {(() => {
-                    const ing = getIngredientsTextFromResult(result);
-                    return ing || "Keine Zutatenliste verfügbar.";
-                  })()}
-                </AppText>
-              ),
-            },
-          ]}
-        />
-
-        {/* Aktionen entfernt auf Wunsch */}
-      </ScrollView>
-    </View>
-  );
-}
-
-/* ===== Helpers & UI ===== */
-
-type AgeGroupSegmentProps = {
-  value: AgeGroupKey;
-  onChange: (next: AgeGroupKey) => void;
-};
-
-function AgeGroupSegment({ value, onChange }: AgeGroupSegmentProps) {
-  const options = Object.entries(AGE_GROUPS) as Array<[AgeGroupKey, { label: string }]>;
-
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        backgroundColor: colors.primary_50,
-        borderRadius: radius.pill,
-        padding: 4,
-        alignSelf: "stretch",
-      }}
-    >
-      {options.map(([key, meta]) => {
-        const isActive = key === value;
-        return (
-          <TouchableOpacity
-            key={key}
-            accessibilityRole="button"
-            accessibilityLabel={`Bewertung für ${meta.label}`}
-            accessibilityState={{ selected: isActive }}
-            onPress={() => onChange(key)}
+          <View
             style={{
-              flex: 1,
-              paddingVertical: 10,
-              borderRadius: radius.pill,
-              backgroundColor: isActive ? colors.primary : "transparent",
-              alignItems: "center",
-              justifyContent: "center",
+              backgroundColor: colors.primary_50,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: colors.border,
+              overflow: "hidden",
             }}
           >
-            <AppText
-              type="p3"
-              style={{
-                color: isActive ? "#fff" : colors.textMuted,
-                fontWeight: "600",
-              }}
-            >
-              {meta.label}
-            </AppText>
-          </TouchableOpacity>
-        );
-      })}
+            {result.imageUrl ? (
+              <Image source={{ uri: result.imageUrl }} style={{ width: "100%", height: 220, resizeMode: "cover" }} />
+            ) : (
+              <View style={{ padding: spacing.xl, alignItems: "center" }}>
+                <AppText type="p3" muted>Kein Bild verfügbar</AppText>
+              </View>
+            )}
+          </View>
+
+          <SectionCard
+            title="Bewertung"
+            items={[
+              {
+                content: (
+                  <View style={{ alignItems: "center", gap: spacing.sm }}>
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: radius.pill,
+                        backgroundColor: statusBg,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Feather name={statusIcon} size={28} color={statusColor} />
+                    </View>
+                    <AppText type="h2" style={{ color: statusColor }}>
+                      {statusText}
+                    </AppText>
+                  </View>
+                ),
+              },
+            ]}
+          />
+
+          {!result.suitable && reasons.length ? (
+            <SectionCard
+              title="Warum diese Bewertung?"
+              items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))}
+            />
+          ) : null}
+
+          <SectionCard
+            title="Nährwerte je 100g"
+            items={[
+              {
+                content: <NutritionRow items={buildNutritionItems(result.nutrition)} />,
+              },
+            ]}
+          />
+
+          <SectionCard
+            title="Zutaten"
+            items={[
+              {
+                content: (
+                  <AppText type="p3">
+                    {(() => {
+                      const ing = getIngredientsTextFromResult(result);
+                      return ing || "Keine Zutatenliste verfügbar.";
+                    })()}
+                  </AppText>
+                ),
+              },
+            ]}
+          />
+        </ScrollView>
+      </View>
     </View>
   );
 }
+/* ===== Helpers & UI ===== */
 
 function fmt(v?: number, unit?: string): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "–";

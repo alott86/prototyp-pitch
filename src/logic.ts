@@ -17,19 +17,12 @@ export type Nutrition = {
   salt?: number;
 };
 
-export type AgeGroupKey = "infant" | "older";
+type AgeGroupKey = "infant" | "older";
 
-export type AgeGroupEvaluation = {
+type AgeGroupEvaluation = {
   suitable: boolean;
   reasons: string[];
 };
-
-export const AGE_GROUPS: Record<AgeGroupKey, { label: string }> = {
-  infant: { label: "6–36 Monate" },
-  older: { label: "> 36 Monate" },
-};
-
-export const DEFAULT_AGE_GROUP: AgeGroupKey = "older";
 
 export type ProductEval = {
   productName?: string | null;
@@ -38,10 +31,8 @@ export type ProductEval = {
   category?: string | null;
   categoryPath?: string[] | null;
   nutrition: Nutrition;
-  ageEvaluations: Record<AgeGroupKey, AgeGroupEvaluation>;
   suitable: boolean;
   reasons: string[];
-  defaultAgeGroup: AgeGroupKey;
   description?: string | null;
   ingredientsText?: string | null;
   sugarsFound: string[];
@@ -155,6 +146,14 @@ type EvaluationContext = {
   sugarsFound: string[];
   productName?: string | null;
   ingredientsText?: string | null;
+};
+
+type PregnancyContext = {
+  nutrition: Nutrition;
+  productName?: string | null;
+  ingredientsText?: string | null;
+  category?: string | null;
+  categoryPath?: string[] | null;
 };
 
 function buildAgeEvaluations(ctx: EvaluationContext): Record<AgeGroupKey, AgeGroupEvaluation> {
@@ -285,15 +284,13 @@ export function evaluateManualProduct(input: ManualProductInput): ProductEval {
 
   const sugarsFound = input.sugarsFound ?? extractSugarSynonyms(ingredientsText ?? "");
 
-  const ageEvaluations = buildAgeEvaluations({
+  const pregnancy = evaluateForPregnancy({
     nutrition,
-    energyKcalPer100g: nutrition.kcal,
-    sugarsFound,
     productName,
     ingredientsText,
+    category,
+    categoryPath,
   });
-
-  const defaultEval = ageEvaluations[DEFAULT_AGE_GROUP];
 
   return {
     productName: productName ?? null,
@@ -302,14 +299,105 @@ export function evaluateManualProduct(input: ManualProductInput): ProductEval {
     category: category ?? null,
     categoryPath: categoryPath ?? null,
     nutrition,
-    ageEvaluations,
-    suitable: defaultEval.suitable,
-    reasons: [...defaultEval.reasons],
-    defaultAgeGroup: DEFAULT_AGE_GROUP,
+    suitable: pregnancy.suitable,
+    reasons: pregnancy.reasons,
     description: description ?? null,
     ingredientsText: ingredientsText ?? null,
     sugarsFound,
   };
+}
+
+function evaluateForPregnancy(ctx: PregnancyContext): { suitable: boolean; reasons: string[] } {
+  // Build a single lowercased text to search in (name + ingredients + categories)
+  const reasons: string[] = [];
+  const { productName, ingredientsText, category, categoryPath } = ctx;
+  const lc = (
+    [productName, ingredientsText, category, ...(categoryPath ?? [])]
+      .filter(Boolean)
+      .join(" \u2022 ")
+      .toLowerCase()
+  );
+
+  const match = (re: RegExp) => re.test(lc);
+
+  // Preparation/processing markers (positive/safe indicators)
+  const isPasteurized = match(/pasteuri[sz]iert|uht|ultra\s*hoch(erhitz|erhitz)t|esl|sterili[sz]iert|heat[- ]treated|fully\s*cooked/);
+  const isCooked = match(/durchgegart|voll( )?ständig\s*gegart|gekocht|gebraten|gegrillt|gebacken|erhitzt|erw(a|ä)rmt|simmered|boiled|baked|fried|grilled|fully\s*cooked/);
+  const isHotSmoked = match(/hei(ß|ss)[- ]ger(a|ä)uchert|hot[- ]smoked/);
+  const isCannedOrSterile = match(/konserve|dose|tinned|canned|sterili[sz]iert|autoklaviert/);
+  const caffeineFree = match(/entkoffeiniert|koffeinfrei|decaf/);
+  const alcoholFree = match(/alkoholfrei|alcohol[- ]?free|0\.?0\s*%/);
+
+  // 1) Alcohol (unless explicitly alcohol-free)
+  if (!alcoholFree) {
+    const alcoholTerms = [
+      /\balcohol\b|\bethanol\b/, /\bwein\b|\bwine\b/, /\bbier\b|\bbeer\b/, /\brum\b/, /\bvodka\b/,
+      /\bwhisk(e)?y\b/, /\blik[öo]r\b|\bliqueur\b/, /\bcider\b/, /\bschnaps\b/, /\bsake\b/,
+      /\bprosecco\b|\bchampagne\b/, /\bport\b|\bsherry\b/
+    ];
+    if (alcoholTerms.some(match) || match(/alkoholisch|alcoholic\s+beverage/)) {
+      reasons.push("Enthält Alkohol (während der Schwangerschaft nicht empfohlen)");
+    }
+  }
+
+  // 2) Energy drinks / high caffeine (unless explicitly caffeine-free)
+  if (!caffeineFree && match(/energy\s*drink|energydrink|guarana|taurine|taurin|high\s*caffeine|\bkoffein\b/)) {
+    reasons.push("Energy-Drink/hoher Koffeingehalt nicht empfohlen");
+  }
+
+  // 3) Unpasteurized dairy
+  const mentionsRawMilk = match(/roh(-)?milch|lait\s*cru|raw\s*milk|unpasteurisiert|unpasteurized/);
+  if (mentionsRawMilk && !isPasteurized) {
+    reasons.push("Unpasteurisierte Milch/Rohmilch (Listeriose-Risiko)");
+  }
+
+  // 4) Soft/blue cheeses – allow if pasteurized or clearly cooked
+  const softBlueCheese = match(/\bbrie\b|\bcamembert\b|weichk(a|ä)se|schimmelk(a|ä)se|blue\s*cheese|gorgonzola|roquefort|bleu/);
+  if (softBlueCheese && !(isPasteurized || isCooked)) {
+    reasons.push("Weich-/Blauschimmelkäse (Listeriose-Risiko)");
+  }
+
+  // 5) Raw/cured meats & ready-to-eat deli meats (safe if label signals cooked/erhitz)
+  const rawCuredMeat = match(/salami|mettwurst|teewurst|prosciutto|serrano|parma\s*schinken|schinken\s*(roh|luftgetrocknet)|carpaccio|tartar(e)?/);
+  if (rawCuredMeat && !(isCooked || isCannedOrSterile)) {
+    reasons.push("Rohwurst/ungegartes Aufschnitt-Fleisch (Listeriose/Toxoplasmose-Risiko)");
+  }
+
+  // 6) Raw/cold-smoked fish, sushi etc. (safe if hot-smoked/canned or cooked)
+  const rawOrSmokedFish = match(/r(ä|a)ucher(lachs|fisch)|cold[- ]smoked|smoked\s*salmon|smoked\s*fish|sushi|sashimi|gravl(ax|aks)/);
+  if (rawOrSmokedFish && !(isHotSmoked || isCooked || isCannedOrSterile)) {
+    reasons.push("Roher/geräucherter Fisch (Listeriose/Parasiten-Risiko)");
+  }
+
+  // 7) High‑mercury fish (always avoid)
+  if (match(/swordfish|schwertfisch|marlin|\bhai\b|\bshark\b|king\s*mackerel|tilefish|gro(ß|ss)augen(-)?thun(fisch)?|bigeye\s*tuna/)) {
+    reasons.push("Fisch mit hohem Quecksilbergehalt");
+  }
+
+  // 8) Liver products (regardless of cooking)
+  if (match(/\bleber\b|\bliver\b|foie\s*gras|leberwurst|leberpastete|cod\s*liver\s*oil/)) {
+    reasons.push("Leber/Leberprodukte (hoher Vitamin-A-Gehalt)");
+  }
+
+  // 9) Raw eggs (safe if pasteurised egg or clearly fully cooked)
+  const mentionsRawEgg = match(/ro(h|he)\s*ei(er)?|raw\s*egg(s)?|ungekochte\s*ei(er)?/);
+  const pasteurizedEgg = isPasteurized || match(/pasteuri[sz]ierte?\s*ei(er)?|egg\s*powder|eipulver|albumen\s*powder/);
+  if (mentionsRawEgg && !(pasteurizedEgg || isCooked)) {
+    reasons.push("Rohe/ungekochte Eier (Salmonellen-Risiko)");
+  }
+
+  // 10) Raw sprouts (safe if canned/sterilised or cooked)
+  if (match(/sprossen|keimlinge|sprouts|alfalfa/) && !(isCooked || isCannedOrSterile)) {
+    reasons.push("Rohe Sprossen/Keimlinge (Keimrisiko)");
+  }
+
+  // 11) High glycyrrhizin (licorice)
+  if (match(/lakritz|salmiak|glycyrrhizin|glycyrrhizins(ä|a)ure|ammoniumchlorid/)) {
+    reasons.push("Lakritz/Salmiak (hoher Glycyrrhizin-Gehalt)");
+  }
+
+  const suitable = reasons.length === 0;
+  return { suitable, reasons };
 }
 
 function formatThreshold(value: number): string {

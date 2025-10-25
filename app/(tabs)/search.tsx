@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, TextInput, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { addRecent } from "../../src/history";
-import { AGE_GROUPS, evaluateManualProduct, fetchProductByBarcode, type ProductEval } from "../../src/logic";
+import { evaluateManualProduct, fetchProductByBarcode, type ProductEval } from "../../src/logic";
 import { colors, radius, spacing, typography } from "../../src/theme";
 import AppButton from "../../src/ui/AppButton";
 import AppText from "../../src/ui/AppText";
@@ -383,18 +383,18 @@ function ProductCardList({
         })}
       </View>
       <AppText type="p3" muted>
-        Tippe auf ein Produkt, um die Bewertung für 6–36 Monate und über 36 Monate zu sehen.
+        Tippe auf ein Produkt, um eine Gesamtbewertung zu sehen.
       </AppText>
     </View>
   );
 }
 
 function EvaluationSummary({ result }: { result: ProductEval }) {
-  const activeEval = result.ageEvaluations[result.defaultAgeGroup];
-  const statusColor = activeEval.suitable ? colors.primary_700 : colors.secondary_700;
-  const statusText = activeEval.suitable ? "Geeignet" : "Nicht geeignet";
-  const statusBg = activeEval.suitable ? colors.primary_100 : colors.secondary_100;
-  const statusIcon: React.ComponentProps<typeof Feather>["name"] = activeEval.suitable ? "check-circle" : "x-circle";
+  const statusColor = result.suitable ? colors.primary_700 : colors.secondary_700;
+  const statusText = result.suitable ? "Geeignet" : "Nicht geeignet";
+  const statusBg = result.suitable ? colors.primary_100 : colors.secondary_100;
+  const statusIcon: React.ComponentProps<typeof Feather>["name"] = result.suitable ? "check-circle" : "x-circle";
+  const reasons = result.reasons ?? [];
 
   return (
     <View style={{ gap: spacing.md }}>
@@ -420,47 +420,20 @@ function EvaluationSummary({ result }: { result: ProductEval }) {
         </AppText>
       </View>
 
-      {(["infant", "older"] as Array<keyof typeof AGE_GROUPS>).map((ageKey) => {
-        const evaluation = result.ageEvaluations[ageKey];
-        if (!evaluation) return null;
-        const color = evaluation.suitable ? colors.primary_600 : colors.secondary_700;
-        const bg = evaluation.suitable ? colors.primary_100 : colors.secondary_100;
-        const icon: React.ComponentProps<typeof Feather>["name"] = evaluation.suitable ? "check-circle" : "x-circle";
-        return (
-          <View key={ageKey} style={{ gap: spacing.xs }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: radius.pill,
-                  backgroundColor: bg,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Feather name={icon} size={18} color={color} />
-              </View>
-              <AppText type="p2b" style={{ color }}>
-                {AGE_GROUPS[ageKey].label}
+      {!result.suitable && reasons.length ? (
+        <View style={{ gap: spacing.xs }}>
+          <AppText type="p2b" style={{ color: colors.text }}>
+            Warum diese Bewertung?
+          </AppText>
+          <View style={{ gap: spacing.xs }}>
+            {reasons.map((reason, idx) => (
+              <AppText key={idx} type="p3">
+                • {reason}
               </AppText>
-            </View>
-            {evaluation.reasons.length ? (
-              <View style={{ paddingLeft: 40, gap: spacing.xs }}>
-                {evaluation.reasons.map((reason, idx) => (
-                  <AppText key={idx} type="p3">
-                    • {reason}
-                  </AppText>
-                ))}
-              </View>
-            ) : (
-              <AppText type="p3" style={{ paddingLeft: 40 }}>
-                Keine kritischen Hinweise.
-              </AppText>
-            )}
+            ))}
           </View>
-        );
-      })}
+        </View>
+      ) : null}
 
       <View style={{
         borderRadius: radius.lg,
