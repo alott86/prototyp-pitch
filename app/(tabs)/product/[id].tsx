@@ -67,11 +67,12 @@ export default function ProductDetailScreen() {
   const statusBg = data.suitable ? colors.primary_100 : colors.secondary_100;
   const statusIcon: React.ComponentProps<typeof Feather>["name"] = data.suitable ? "check-circle" : "x-circle";
   const reasons = data.reasons ?? [];
+  const showImageBg = Boolean(data.imageUrl) && source !== "favorites"; // aus Verlauf immer hellgrün
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Dezenter Bild-Hintergrund im oberen Bereich für konsistente Optik */}
-      {data.imageUrl ? (
+      {showImageBg ? (
         <Image
           source={{ uri: data.imageUrl }}
           style={{ position: "absolute", top: 0, left: 0, right: 0, height: 220, resizeMode: "cover", opacity: 0.8 }}
@@ -154,7 +155,17 @@ export default function ProductDetailScreen() {
           />
 
           {!data.suitable && reasons.length ? (
-            <SectionCard title="Warum diese Bewertung?" items={reasons.map((reason) => ({ content: <AppText type="p3">• {reason}</AppText> }))} />
+            <SectionCard
+              title="Warum diese Bewertung?"
+              items={reasons.map((reason, idx) => ({
+                content: (
+                  <AppText key={idx} type="p3">
+                    {"\u2022 "}
+                    {renderHighlightedReason(reason, statusColor)}
+                  </AppText>
+                ),
+              }))}
+            />
           ) : null}
 
           <SectionCard title="Nährwerte je 100g" items={[{ content: <NutritionRow items={buildNutritionItems(data.nutrition)} /> }]} />
@@ -265,25 +276,28 @@ function NutritionRow({ items }: { items: NutritionRowItem[] }) {
 }
 
 function buildNutritionItems(nutrition: ProductEval["nutrition"]): NutritionRowItem[] {
-  const sugar = nutrition.sugars;
-  const salt = nutrition.salt;
-
-  const sugarTone: NutritionTone =
-    typeof sugar === "number"
-      ? sugar > 15
-        ? "warn"
-        : sugar <= 5
-        ? "good"
-        : "neutral"
-      : "neutral";
-
-  const saltTone: NutritionTone =
-    typeof salt === "number" ? (salt > 1.2 ? "warn" : "good") : "neutral";
-
+  // Demo-Anpassung: immer grün darstellen, keine Warnfarbe mehr
   return [
-    { label: "Kalorien", value: fmt(nutrition.kcal, "kcal"), tone: "neutral" },
-    { label: "Fett", value: fmtOne(nutrition.fat, "g"), tone: "neutral" },
-    { label: "Zucker", value: fmtOne(nutrition.sugars, "g"), tone: sugarTone },
-    { label: "Salz", value: fmtOne(nutrition.salt, "g"), tone: saltTone },
+    { label: "Kalorien", value: fmt(nutrition.kcal, "kcal"), tone: "good" },
+    { label: "Fett", value: fmtOne(nutrition.fat, "g"), tone: "good" },
+    { label: "Zucker", value: fmtOne(nutrition.sugars, "g"), tone: "good" },
+    { label: "Salz", value: fmtOne(nutrition.salt, "g"), tone: "good" },
   ];
+}
+
+function renderHighlightedReason(text: string, color: string) {
+  const re = /Listeriose(?:-Risikos)?/i;
+  const match = text.match(re);
+  if (!match) return text;
+  const idx = match.index ?? 0;
+  const before = text.slice(0, idx);
+  const word = match[0];
+  const after = text.slice(idx + word.length);
+  return (
+    <>
+      {before}
+      <AppText type="p3" style={{ color }}>{word}</AppText>
+      {after}
+    </>
+  );
 }
