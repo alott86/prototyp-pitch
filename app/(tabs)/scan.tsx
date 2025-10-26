@@ -354,7 +354,7 @@ export default function ScanScreen() {
             }}
           >
             {result.imageUrl ? (
-              <Image source={{ uri: result.imageUrl }} style={{ width: "100%", height: 220, resizeMode: "cover" }} />
+              <Image source={{ uri: result.imageUrl }} style={{ width: "100%", height: 220 }} resizeMode="contain" />
             ) : (
               <View style={{ padding: spacing.xl, alignItems: "center" }}>
                 <AppText type="p3" muted>Kein Bild verfügbar</AppText>
@@ -367,18 +367,18 @@ export default function ScanScreen() {
             items={[
               {
                 content: (
-                  <View style={{ alignItems: "center", gap: spacing.sm }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm }}>
                     <View
                       style={{
-                        width: 56,
-                        height: 56,
+                        width: 32,
+                        height: 32,
                         borderRadius: radius.pill,
                         backgroundColor: statusBg,
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      <Feather name={statusIcon} size={28} color={statusColor} />
+                      <Feather name={statusIcon} size={18} color={statusColor} />
                     </View>
                     <AppText type="h2" style={{ color: statusColor }}>
                       {statusText}
@@ -393,13 +393,7 @@ export default function ScanScreen() {
             <SectionCard
               title="Warum diese Bewertung?"
               items={reasons.map((reason, idx) => ({
-                content: (
-                  <AppText key={idx} type="p3">
-                    {/* Bullet */}
-                    {"\u2022 "}
-                    {renderHighlightedReason(reason, statusColor)}
-                  </AppText>
-                ),
+                content: renderWhyBlock(reason, result.productName ?? null),
               }))}
             />
           ) : null}
@@ -527,19 +521,40 @@ function buildNutritionItems(nutrition: ProductEval["nutrition"]): NutritionRowI
   ];
 }
 
-function renderHighlightedReason(text: string, color: string) {
-  const re = /Listeriose(?:-Risikos)?/i;
-  const match = text.match(re);
-  if (!match) return text;
-  const idx = match.index ?? 0;
-  const before = text.slice(0, idx);
-  const word = match[0];
-  const after = text.slice(idx + word.length);
+function renderWhyBlock(reason: string, fallbackName: string | null) {
+  const raw = String(reason || "");
+  const parts = raw.split(/\n+/);
+  const nameLine = (parts[0] || fallbackName || "").trim();
+  // Body ohne erste Zeile
+  const body = parts.slice(1).join("\n").trim();
+  const riskRe = /Listeriose(?:-Risikos|risikos|risiko)?/i;
+  const m = body.match(riskRe);
+  const risk = m ? m[0] : null;
+  const idx = m?.index ?? -1;
+  const before = idx >= 0 ? body.slice(0, idx).trimEnd() : body;
+  const after = idx >= 0 ? body.slice(idx + (risk?.length ?? 0)).trimStart() : "";
   return (
-    <>
-      {before}
-      <AppText type="p3" style={{ color }}>{word}</AppText>
-      {after}
-    </>
+    <View style={{ alignItems: "center", justifyContent: "center" }}>
+      {!!nameLine && (
+        <AppText type="p3b" style={{ textAlign: "center" }}>
+          {nameLine}
+        </AppText>
+      )}
+      {before ? (
+        <AppText type="p3" style={{ textAlign: "center" }}>
+          {before}
+        </AppText>
+      ) : null}
+      {risk ? (
+        <AppText type="p3b" style={{ textAlign: "center", color: colors.secondary_600 }}>
+          {risk}
+        </AppText>
+      ) : null}
+      {after ? (
+        <AppText type="p3" style={{ textAlign: "center" }}>
+          {after}
+        </AppText>
+      ) : null}
+    </View>
   );
 }

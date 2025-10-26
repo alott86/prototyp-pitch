@@ -115,17 +115,33 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
     const description: string | null = p.generic_name_de || p.generic_name || null;
     const sugarsFound = extractSugarSynonyms(ingredientsText || "");
 
-    return evaluateManualProduct({
-      productName: productName ?? undefined,
-      brand: brand ?? undefined,
-      imageUrl: imageUrl ?? undefined,
-      category: category ?? undefined,
-      categoryPath: catPath ?? undefined,
-      nutrition,
-      description: description ?? undefined,
-      ingredientsText: ingredientsText ?? undefined,
-      sugarsFound,
-    });
+    // Demo-Spezialfälle: Nur zwei EANs werden unterstützt und fest bewertet.
+    if (code === "4337256945523" || code === "4337256103480") {
+      const suitable = code === "4337256103480"; // Gouda geeignet, Bergkäse nicht geeignet
+      const reasons: string[] = [];
+      if (!suitable) {
+        reasons.push(
+          `${productName || "REWE Bio Bergkäse"}\nist laut Herstellerangaben ein Rohmilchkäse, der in der Schwangerschaft aufgrund des Listeriose-Risikos gemieden werden sollte.`
+        );
+      }
+      const result: ProductEval = {
+        productName: productName ?? null,
+        brand: brand ?? null,
+        imageUrl: imageUrl ?? null,
+        category: category ?? null,
+        categoryPath: catPath ?? null,
+        nutrition,
+        suitable,
+        reasons,
+        description: description ?? null,
+        ingredientsText: ingredientsText ?? null,
+        sugarsFound,
+      };
+      return result;
+    }
+
+    // Für alle anderen EANs keine Bewertung im Demo-Modus.
+    return null;
   } catch (err) {
     console.warn("fetchProductByBarcode error:", err);
     return null;

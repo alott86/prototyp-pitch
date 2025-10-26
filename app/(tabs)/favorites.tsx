@@ -151,7 +151,11 @@ function FavoriteCard({
     >
       <TouchableOpacity activeOpacity={0.85} onPress={onOpen} style={{ borderRadius: radius.xl, overflow: "hidden" }}>
         {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={{ width: "100%", height: 180 }} />
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={{ width: "100%", height: 180, backgroundColor: colors.primary_50 }}
+            resizeMode="contain"
+          />
         ) : (
           <View
             style={{
