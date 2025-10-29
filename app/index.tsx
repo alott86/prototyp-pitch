@@ -1,38 +1,51 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Redirect } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import React from "react";
+import { Image, Platform, TouchableOpacity, View } from "react-native";
 
-import { STORAGE_KEYS } from "../src/storageKeys";
+import { colors, spacing } from "../src/theme";
+import AppText from "../src/ui/AppText";
+
+const NUMUM_LOGO = require("../assets/images/NuMum_Logo Kopie.png");
 
 export default function Index() {
-  const [ready, setReady] = useState(false);
-  const [seen, setSeen] = useState<boolean | null>(null);
+  const router = useRouter();
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const value = await AsyncStorage.getItem(STORAGE_KEYS.onboardingSeen);
-        if (!alive) return;
-        setSeen(value === "1");
-      } catch (err) {
-        console.warn("Failed to read onboarding flag", err);
-        if (!alive) return;
-        setSeen(false);
-      } finally {
-        if (alive) setReady(true);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.lg,
+      }}
+   >
+      <View style={{ alignItems: "center", gap: spacing.lg, marginTop: -80 }}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.replace("/(tabs)/scan")}
+        >
+          <Image
+            source={NUMUM_LOGO}
+            resizeMode="contain"
+            style={{ width: 300, height: 300 }}
+          />
+        </TouchableOpacity>
 
-  if (!ready) return null;
-
-  if (seen) {
-    return <Redirect href="/(tabs)/scan" />;
-  }
-
-  return <Redirect href="/onboarding" />;
+        <AppText
+          type="h1"
+          style={{
+            textAlign: "center",
+            color: "#FF69B4",
+            // Rundere Schrift: iOS nutzt ArialRounded, Android bleibt bei sans-serif fett
+            fontFamily: Platform.select({ ios: "ArialRoundedMTBold", android: "sans-serif", default: "System" }),
+            fontWeight: Platform.OS === "android" ? "700" : undefined,
+            letterSpacing: 0.5,
+          }}
+        >
+          Ein Scan,{"\n"} ein sicheres Gefühl.
+        </AppText>
+      </View>
+    </View>
+  );
 }

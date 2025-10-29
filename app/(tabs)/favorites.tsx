@@ -51,24 +51,33 @@ export default function FavoritesScreen() {
         contentInsetAdjustmentBehavior="never"
       >
         <View style={{ paddingTop: LOGO_TOP_MARGIN, marginBottom: spacing.sm }}>
-          <View pointerEvents="none" style={{ alignItems: "center" }}>
-            <Image
-              source={NUMUM_LOGO}
-              style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
-              resizeMode="contain"
-            />
+          <View style={{ alignItems: "center" }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Zum Startbildschirm"
+              activeOpacity={0.8}
+              onPress={() => router.replace("/")}
+            >
+              <Image
+                source={NUMUM_LOGO}
+                style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
           </View>
           <View
             pointerEvents="box-none"
             style={{
               position: "absolute",
-              top: BUTTON_TOP_MARGIN,
-              left: spacing.lg,
-              right: spacing.lg,
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 30,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: spacing.sm,
+              paddingTop: BUTTON_TOP_MARGIN,
+              paddingHorizontal: spacing.lg,
             }}
           >
             <View style={{ width: 40, height: 40 }} />

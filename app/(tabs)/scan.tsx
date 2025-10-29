@@ -212,7 +212,6 @@ export default function ScanScreen() {
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         {topControls(true)}
         <View
-          pointerEvents="none"
           style={{
             position: "absolute",
             top: 0,
@@ -223,11 +222,18 @@ export default function ScanScreen() {
             paddingTop: LOGO_TOP_MARGIN,
           }}
         >
-          <Image
-            source={NUMUM_LOGO}
-            style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
-            resizeMode="contain"
-          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Zum Startbildschirm"
+            activeOpacity={0.8}
+            onPress={() => router.replace("/")}
+          >
+            <Image
+              source={NUMUM_LOGO}
+              style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
         </View>
         {cameraOn && (
           <CameraView
