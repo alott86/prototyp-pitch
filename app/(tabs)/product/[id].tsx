@@ -127,8 +127,15 @@ export default function ProductDetailScreen() {
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: LOGO_TOP_MARGIN, gap: spacing.xl, paddingBottom: bottomPad }}
           contentInsetAdjustmentBehavior="never"
         >
-          <View pointerEvents="none" style={{ alignItems: "center" }}>
-            <Image source={require("../../../assets/images/NuMum_Logo Kopie.png")} style={{ width: 120, height: 120 }} resizeMode="contain" />
+          <View style={{ alignItems: "center" }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Zum Startbildschirm"
+              activeOpacity={0.8}
+              onPress={() => router.replace("/")}
+            >
+              <Image source={require("../../../assets/images/NuMum_Logo Kopie.png")} style={{ width: 120, height: 120 }} resizeMode="contain" />
+            </TouchableOpacity>
           </View>
 
           <ProfileHeader title={data.productName || "Unbekanntes Produkt"} subtitle={data.brand || "Marke unbekannt"} icon="package" showAvatar={false} />

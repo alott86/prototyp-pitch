@@ -349,8 +349,15 @@ export default function ScanScreen() {
           }}
           contentInsetAdjustmentBehavior="never"
         >
-          <View pointerEvents="none" style={{ alignItems: "center" }}>
-            <Image source={NUMUM_LOGO} style={{ width: LOGO_SIZE, height: LOGO_SIZE }} resizeMode="contain" />
+          <View style={{ alignItems: "center" }}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Zum Startbildschirm"
+              activeOpacity={0.8}
+              onPress={() => router.replace("/")}
+            >
+              <Image source={NUMUM_LOGO} style={{ width: LOGO_SIZE, height: LOGO_SIZE }} resizeMode="contain" />
+            </TouchableOpacity>
           </View>
 
           <ProfileHeader
