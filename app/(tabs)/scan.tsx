@@ -1,6 +1,6 @@
 // app/(tabs)/scan.tsx
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   BarcodeScanningResult,
   CameraView,
@@ -31,6 +31,7 @@ type Screen = "scan" | "result";
 
 export default function ScanScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   // Kamera-Berechtigung
@@ -45,12 +46,21 @@ export default function ScanScreen() {
   const [torchOn, setTorchOn] = useState(false);
 
   // Abstand unten, damit die Tab-Bar nichts verdeckt
-  const bottomPad = useTabBarPadding(spacing.lg);
+  const tabBarPad = useTabBarPadding(spacing.lg);
 
   // Guards gegen Doppelscan
   const lockRef = useRef(false);
   const lastScanTsRef = useRef<number>(0);
   const lastCodeRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    navigation.setParams({ hideTabBar: screen === "result" });
+    return () => {
+      navigation.setParams({ hideTabBar: false });
+    };
+  }, [navigation, screen]);
+
+  const bottomPad = screen === "result" ? insets.bottom + spacing.lg : tabBarPad;
 
   // Berechtigung nachfragen
   useEffect(() => {
@@ -334,7 +344,7 @@ export default function ScanScreen() {
           contentContainerStyle={{
             paddingHorizontal: spacing.lg,
             paddingTop: LOGO_TOP_MARGIN,
-            paddingBottom: spacing.lg,
+            paddingBottom: bottomPad,
             gap: spacing.xl,
           }}
           contentInsetAdjustmentBehavior="never"

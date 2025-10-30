@@ -1,6 +1,8 @@
 // src/history.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { DEMO_BARCODE_OVERRIDES } from "./logic";
+
 const KEY = "recent_products_v1";
 
 export type RecentItem = {
@@ -15,18 +17,39 @@ export type RecentItem = {
 
 export type RecentInput = Omit<RecentItem, "ts">;
 
+function mergeDemoOverrides<T extends { id: string; imageUrl?: string | null; suitable?: boolean | null }>(
+  item: T
+): T {
+  const override = DEMO_BARCODE_OVERRIDES[item.id];
+  if (!override) return item;
+
+  return {
+    ...item,
+    imageUrl: override.imageUrl ?? item.imageUrl ?? null,
+    suitable: override.suitable ?? (item.suitable ?? null),
+  };
+}
+
 /** Eintrag hinzufügen/aktualisieren (Dedupe per id) und auf 10 begrenzen */
 export async function addRecent(item: RecentInput): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     const list: RecentItem[] = raw ? JSON.parse(raw) : [];
 
+    const normalizedInput = mergeDemoOverrides({
+      ...item,
+      imageUrl: item.imageUrl ?? null,
+      suitable: item.suitable ?? null,
+    });
+
     const existing = list.find((x) => x.id === item.id);
     const filtered = list.filter((x) => x.id !== item.id);
     const next: RecentItem[] = [
       {
-        ...item,
-        favorite: item.favorite ?? existing?.favorite ?? false,
+        ...mergeDemoOverrides({
+          ...normalizedInput,
+          favorite: normalizedInput.favorite ?? existing?.favorite ?? false,
+        }),
         ts: Date.now(),
       },
       ...filtered,
@@ -43,7 +66,14 @@ export async function getRecents(): Promise<RecentItem[]> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     const list: RecentItem[] = raw ? JSON.parse(raw) : [];
-    return list.sort((a, b) => b.ts - a.ts);
+    const normalized = list.map((entry) =>
+      mergeDemoOverrides({
+        ...entry,
+        imageUrl: entry.imageUrl ?? null,
+        suitable: entry.suitable ?? null,
+      })
+    );
+    return normalized.sort((a, b) => b.ts - a.ts);
   } catch (e) {
     console.warn("getRecents failed", e);
     return [];

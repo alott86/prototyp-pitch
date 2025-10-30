@@ -30,7 +30,12 @@ export default function TabsLayout() {
 
 function CustomBar({ state, navigation }: BottomTabBarProps) {
   const router = useRouter();
-  const currentRoute = state.routes[state.index]?.name;
+  const activeRoute = state.routes[state.index];
+  const currentRoute = activeRoute?.name;
+
+  if (currentRoute === "product/[id]" || (activeRoute?.params as { hideTabBar?: boolean } | undefined)?.hideTabBar) {
+    return null;
+  }
 
   const goTo = (name: string) => {
     navigation.navigate(name as never);

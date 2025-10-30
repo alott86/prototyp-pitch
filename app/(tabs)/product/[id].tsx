@@ -1,5 +1,5 @@
 // app/(tabs)/product/[id].tsx
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
@@ -11,19 +11,26 @@ import AppText from "../../../src/ui/AppText";
 import ProfileHeader from "../../../src/ui/ProfileHeader";
 import SectionCard from "../../../src/ui/SectionCard";
 // SettingsButton entfällt im Overlay-Design
-import { useTabBarPadding } from "../../../src/ui/tabBarInset";
 
 export default function ProductDetailScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const [busy, setBusy] = useState(true);
   const [data, setData] = useState<ProductEval | null>(null);
-  const bottomPad = useTabBarPadding(spacing.lg);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const bottomPad = insets.bottom + spacing.lg;
   const overlayTop = Math.max(insets.top + spacing.md, spacing.lg);
   const overlayMinHeight = 480;
   const LOGO_TOP_MARGIN = spacing.lg;
+
+  useEffect(() => {
+    navigation.setParams({ hideTabBar: true });
+    return () => {
+      navigation.setParams({ hideTabBar: false });
+    };
+  }, [navigation]);
 
   useEffect(() => {
     let alive = true;
@@ -117,7 +124,7 @@ export default function ProductDetailScreen() {
         </TouchableOpacity>
 
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: LOGO_TOP_MARGIN, gap: spacing.xl, paddingBottom: spacing.lg }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: LOGO_TOP_MARGIN, gap: spacing.xl, paddingBottom: bottomPad }}
           contentInsetAdjustmentBehavior="never"
         >
           <View pointerEvents="none" style={{ alignItems: "center" }}>
