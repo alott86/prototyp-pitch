@@ -43,6 +43,47 @@ export type ProductEval = {
  * Gibt entweder ein ProductEval zurück oder null (bei Nichtfund/Fehler).
  * Wirft KEINE Exceptions nach außen.
  */
+type DemoOverrideContext = {
+  productName?: string | null;
+};
+
+export type DemoOverride = {
+  suitable: boolean;
+  reason?: (ctx: DemoOverrideContext) => string;
+  imageUrl?: string;
+};
+
+export const DEMO_BARCODE_OVERRIDES: Record<string, DemoOverride> = {
+  "4337256945523": {
+    suitable: false,
+    reason: ({ productName }) =>
+      `${productName || "REWE Bio Bergkäse"}\nist laut Herstellerangaben ein Rohmilchkäse, der in der Schwangerschaft aufgrund des Listeriose-Risikos gemieden werden sollte.`,
+  },
+  "4337256103480": { suitable: true },
+  "4337256577588": {
+    suitable: false,
+    reason: ({ productName }) =>
+      `${productName || "Dieses Produkt"}\nist im Demo-Datensatz als nicht geeignet hinterlegt.`,
+  },
+  "4000405003084": {
+    suitable: false,
+    reason: ({ productName }) =>
+      `${productName || "Dieses Produkt"}\nist im Demo-Datensatz als nicht geeignet hinterlegt.`,
+  },
+  "4260160790128": {
+    suitable: false,
+    reason: ({ productName }) =>
+      `${productName || "Dieses Produkt"}\nist im Demo-Datensatz als nicht geeignet hinterlegt.`,
+  },
+  "4042874010613": { suitable: true },
+  "4000582185290": { suitable: true },
+  "4002468210478": { suitable: true },
+  "40804644": {
+    suitable: true,
+    imageUrl: "https://images.openfoodfacts.org/images/products/000/004/080/4644/front_de.43.400.jpg",
+  },
+};
+
 export async function fetchProductByBarcode(barcode: string): Promise<ProductEval | null> {
   const code = (barcode || "").trim();
   if (!code) return null;
@@ -115,23 +156,29 @@ export async function fetchProductByBarcode(barcode: string): Promise<ProductEva
     const description: string | null = p.generic_name_de || p.generic_name || null;
     const sugarsFound = extractSugarSynonyms(ingredientsText || "");
 
-    // Demo-Spezialfälle: Nur zwei EANs werden unterstützt und fest bewertet.
-    if (code === "4337256945523" || code === "4337256103480") {
-      const suitable = code === "4337256103480"; // Gouda geeignet, Bergkäse nicht geeignet
+    const demoOverride = DEMO_BARCODE_OVERRIDES[code];
+    if (demoOverride) {
       const reasons: string[] = [];
-      if (!suitable) {
-        reasons.push(
-          `${productName || "REWE Bio Bergkäse"}\nist laut Herstellerangaben ein Rohmilchkäse, der in der Schwangerschaft aufgrund des Listeriose-Risikos gemieden werden sollte.`
-        );
+      if (!demoOverride.suitable) {
+        if (demoOverride.reason) {
+          reasons.push(
+            demoOverride.reason({
+              productName,
+            })
+          );
+        } else {
+          reasons.push("Dieses Produkt ist im Demo-Datensatz als nicht geeignet hinterlegt.");
+        }
       }
+
       const result: ProductEval = {
         productName: productName ?? null,
         brand: brand ?? null,
-        imageUrl: imageUrl ?? null,
+        imageUrl: demoOverride.imageUrl ?? imageUrl ?? null,
         category: category ?? null,
         categoryPath: catPath ?? null,
         nutrition,
-        suitable,
+        suitable: demoOverride.suitable,
         reasons,
         description: description ?? null,
         ingredientsText: ingredientsText ?? null,
