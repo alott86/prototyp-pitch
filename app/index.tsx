@@ -41,6 +41,8 @@ export default function Index() {
             fontFamily: Platform.select({ ios: "ArialRoundedMTBold", android: "sans-serif", default: "System" }),
             fontWeight: Platform.OS === "android" ? "700" : undefined,
             letterSpacing: 0.5,
+            fontSize: 32,
+            lineHeight: 42,
           }}
         >
           Ein Scan,{"\n"} ein sicheres Gefühl.
